@@ -1,0 +1,76 @@
+name: CI
+
+# Default CI gates from CLAUDE.md ("Quality gates") plus fixture validation
+# per the MVP command `zk-guard fixtures validate`. This workflow only runs
+# this repository's own build/test/lint commands — it never executes
+# anything from a scanned target repository (zk-guard's own security
+# boundary applies to its own CI too).
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+# Cancel superseded runs on the same branch/PR to keep CI fast and bounded.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  fmt:
+    name: cargo fmt --check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install stable Rust (rustfmt)
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - run: cargo fmt --all -- --check
+
+  clippy:
+    name: cargo clippy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install stable Rust (clippy)
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo clippy --workspace --all-targets -- -D warnings
+
+  test:
+    name: cargo test --workspace
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install stable Rust
+        uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: cargo test --workspace
+        # Default `cargo test` already skips #[ignore]d tests, which is
+        # exactly where zkguard-fuzz's heavy proptest campaign lives
+        # (crates/zkguard-fuzz/tests/property_no_panic.rs). Do NOT add
+        # --ignored or --include-ignored here.
+        run: cargo test --workspace
+
+  fixtures:
+    name: zk-guard fixtures validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install stable Rust
+        uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Build release CLI
+        run: cargo build --release -p zkguard-cli
+      - name: Validate fixture tree
+        # Per CLAUDE.md's MVP commands: gates on fixture integrity
+        # (readable .nr sources, no traversal errors) for every fixture
+        # project under fixtures/noir/{vulnerable,safe}/. This is a
+        # filesystem sanity check, not a rule-correctness check — rule
+        # correctness against fixtures is covered by the `test` job above.
+        run: ./target/release/zk-guard fixtures validate

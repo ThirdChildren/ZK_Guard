@@ -14,11 +14,30 @@ false-positive classes.
 
 ## Status
 
-Pre-0.1.0. One rule is implemented end-to-end (`NOIR-PUBLIC-001`); the
-remaining MVP rules from `CLAUDE.md` land incrementally (see
-`docs/roadmap.md`). The CLI, exit codes, and JSON/Markdown report formats
-described below are stable for this rule set and are not expected to
-change shape as more rules are added — only the rule registry grows.
+Pre-1.0, targeting the `0.1.0` release. **Five rules are implemented
+end-to-end** and registered in `crates/zkguard-rules/src/registry.rs`:
+
+| Rule ID | Severity | Confidence | What it detects |
+|---|---|---|---|
+| `NOIR-PUBLIC-001` | high | medium | A `pub` parameter of `fn main` that never reaches an `assert`/`assert_eq`/`constrain` expression, directly or via one intermediate `let` binding. |
+| `NOIR-CONSTRAINT-001` | high | medium | A computed boolean/equality comparison bound to a `let` that is never passed to `assert`/`assert_eq`/`constrain`. |
+| `NOIR-RANGE-001` | medium | low | Array/slice indexing, narrowing integer casts, or unsigned subtraction using a non-constant value with no apparent range-check idiom in the same function. |
+| `ZK-HASH-001` | medium | medium | A hash/commitment call built from an inline array literal with no apparent domain/context tag argument. |
+| `ZK-NULLIFIER-001` | high | low | A nullifier-like binding (by naming convention) that is either unhashed or hashed with no apparent domain tag. |
+
+See `docs/rule-taxonomy.md` for each rule's full detection strategy,
+false-positive notes, and fixture requirements.
+
+**Two MVP rules from `CLAUDE.md`'s taxonomy are deferred, not implemented:**
+`ZK-REPLAY-001` (project-level replay/uniqueness-binding check) and
+`ZK-TEST-001` (negative/`should_fail` test-coverage check). They are
+documented in `docs/rule-taxonomy.md` and tracked in `docs/roadmap.md`
+Phase 7/9 as post-0.1.0 follow-ups — `zk-guard rules list` will not show
+them until they land.
+
+The CLI, exit codes, and JSON/Markdown report formats described below are
+stable for the current rule set and are not expected to change shape as
+more rules are added — only the rule registry grows.
 
 ## Installation
 
@@ -51,11 +70,12 @@ or a single `.nr` file. Discovery never executes anything found in the
 scanned tree, never follows symlinks, and never performs network access
 (see `CLAUDE.md`'s "Security boundaries").
 
-Default output is plain text to stdout:
+Default output is plain text to stdout. This is the real output of
+`zk-guard scan fixtures/noir/vulnerable/noir-public-001`:
 
 ```text
 [HIGH] Public input declared but unused in a constraint-relevant expression (NOIR-PUBLIC-001)
-  location:   src/main.nr:10
+  location:   fixtures/noir/vulnerable/noir-public-001/src/main.nr:10
   confidence: medium
   evidence:   pub claimed_total: Field
   why:        A public input that never reaches an assert/constrain is not actually bound by the proof — a malicious prover can set it to any value, defeating the purpose of making it public in the first place. This is the canonical "under-constrained circuit" bug class in ZK audits.
@@ -63,7 +83,7 @@ Default output is plain text to stdout:
 
 Summary:
   files scanned: 1
-  rules run:     1
+  rules run:     5
   CRITICAL:  0
   HIGH:      1
   MEDIUM:    0
@@ -71,6 +91,10 @@ Summary:
   INFO:      0
   total:     1
 ```
+
+`rules run` reflects the current registry size (5), not just the rule that
+produced a finding — every scan runs every registered rule against every
+discovered source file.
 
 ### Machine-readable output (CI)
 
@@ -80,26 +104,34 @@ zk-guard scan ./path/to/noir-project --format json
 
 Emits the scan result as pretty-printed JSON to stdout. Field names and
 lowercase `severity`/`confidence` strings match `CLAUDE.md`'s "Reporting
-schema" exactly, so the shape is stable for CI parsing:
+schema" exactly, so the shape is stable for CI parsing. This is the real
+output of
+`zk-guard scan fixtures/noir/vulnerable/zk-nullifier-001-unhashed --format json`:
 
 ```json
 {
   "findings": [
     {
-      "rule_id": "NOIR-PUBLIC-001",
-      "title": "Public input declared but unused in a constraint-relevant expression",
+      "rule_id": "ZK-NULLIFIER-001",
+      "title": "Nullifier-like value generated without a visible domain separator",
       "severity": "high",
-      "confidence": "medium",
-      "file": "src/main.nr",
-      "line": 10,
+      "confidence": "low",
+      "file": "fixtures/noir/vulnerable/zk-nullifier-001-unhashed/src/main.nr",
+      "line": 13,
       "column": null,
-      "evidence": "pub claimed_total: Field",
-      "why_it_matters": "...",
-      "remediation": "..."
+      "evidence": "nullifier = secret (this value is reused directly with no hash at all, which is a stronger structural signal of missing domain separation than an untagged hash)",
+      "why_it_matters": "A nullifier without a domain separator can potentially be replayed across different circuits, actions, or deployments that share the same underlying secret/index inputs, weakening the uniqueness property the nullifier is meant to guarantee.",
+      "remediation": "Always mix a fixed, action/circuit-specific domain constant into nullifier computation, in addition to (not instead of) the nullifier actually being checked against a set of previously-seen values by the verifier/contract integration."
     }
   ],
   "files_scanned": 1,
-  "rules_run": ["NOIR-PUBLIC-001"]
+  "rules_run": [
+    "NOIR-PUBLIC-001",
+    "NOIR-CONSTRAINT-001",
+    "NOIR-RANGE-001",
+    "ZK-HASH-001",
+    "ZK-NULLIFIER-001"
+  ]
 }
 ```
 
@@ -134,10 +166,20 @@ zk-guard rules list --format json
 zk-guard rules list --format markdown
 ```
 
+This is the real output of `zk-guard rules list`:
+
 ```text
-RULE_ID          SEVERITY    CONFIDENCE  TITLE
-NOIR-PUBLIC-001  high        medium      Public input declared but unused in a constraint-relevant expression
-                 Detects `pub` parameters of `fn main` that never reach an assert/assert_eq/constrain expression, directly or via one intermediate `let` binding.
+RULE_ID              SEVERITY    CONFIDENCE  TITLE
+NOIR-PUBLIC-001      high        medium      Public input declared but unused in a constraint-relevant expression
+                     Detects `pub` parameters of `fn main` that never reach an assert/assert_eq/constrain expression, directly or via one intermediate `let` binding.
+NOIR-CONSTRAINT-001  high        medium      Computed boolean/equality/range check not asserted
+                     Detects `let <ident> = <comparison>;` bindings inside `fn main` whose resulting boolean is never passed to assert/assert_eq/constrain, directly or via one intermediate `let` binding.
+NOIR-RANGE-001       medium      low         Numeric value used in a security-sensitive context without an obvious range check
+                     Detects array/slice indexing by a non-constant, non-loop-counter identifier, narrowing integer casts, and unsigned subtraction inside `fn main` with no apparent range-check idiom (assert with a bound, or a range_check/assert_max_bits/ lt/lte helper call) referencing the same identifier.
+ZK-HASH-001          medium      medium      Hash commitment built from ambiguous concatenation or missing domain tag
+                     Detects calls to hash/commitment functions (callee path containing `hash`, `sha256`, or `pedersen`) built from an inline array literal with no apparent domain/context tag argument, downgrading confidence when no corroborating same-arity call exists elsewhere in the file.
+ZK-NULLIFIER-001     high        low         Nullifier-like value generated without a visible domain separator
+                     Detects `let`/function bindings whose name matches a nullifier naming convention (nullifier, null_hash, spent_tag) where the computed value is either not the output of a hash at all, or is a hash call with no apparent domain/context tag argument.
 ```
 
 ### Validate the fixture tree
@@ -186,17 +228,35 @@ parse `scan-result.json` for finding detail in a CI annotation step.
 
 ## Limitations
 
-- Heuristic, best-effort static detections only — no formal verification,
-  no SMT solving, no semantic dataflow analysis. See
-  `docs/rule-taxonomy.md`'s "Disclaimer" and each rule's "False-positive
-  notes" for known gaps.
-- Single rule implemented end-to-end so far (`NOIR-PUBLIC-001`); the
-  remaining MVP rules in `CLAUDE.md` are tracked in `docs/roadmap.md`.
+**`zk-guard` is a best-effort, heuristic static scanner. It is not a formal
+verifier, not an SMT solver, and not a substitute for a manual security
+audit.** A finding is "this source pattern looks suspicious," never "this
+circuit is exploitable" or "this circuit is provably under-constrained."
+Treat every finding as a lead to investigate, not a confirmed bug — severity
+and confidence describe the scanner's own uncertainty about the detection,
+not a guarantee about real-world impact. See `docs/rule-taxonomy.md`'s
+"Disclaimer" and each rule's "False-positive notes" for the specific known
+gaps behind this general statement.
+
+Concretely, as of `0.1.0`:
+
+- **5 of 7** MVP rules from `CLAUDE.md`'s taxonomy are implemented
+  (`NOIR-PUBLIC-001`, `NOIR-CONSTRAINT-001`, `NOIR-RANGE-001`,
+  `ZK-HASH-001`, `ZK-NULLIFIER-001`). `ZK-REPLAY-001` and `ZK-TEST-001` are
+  specified in `docs/rule-taxonomy.md` but not yet implemented — they do
+  not appear in `zk-guard rules list` and will never be flagged.
+- Detection is text/shape-level heuristics over single functions in most
+  rules, not full dataflow or cross-file analysis. Custom assertion/range-
+  check helper functions, cross-function flow, and naming-convention-only
+  detections (`ZK-NULLIFIER-001`) are documented false-positive/false-
+  negative sources, not bugs.
 - Noir only. Circom and zkVM guest-code support are explicitly out of
-  scope for now.
+  scope for now (see `docs/roadmap.md`).
 - No SARIF output yet (JSON and Markdown only, by 0.1.0 design).
-- Findings are never proof of exploitability and never a substitute for a
-  manual security audit.
+- No cryptographic soundness claims of any kind are made about a scanned
+  circuit, regardless of how many (or how few) findings a scan produces.
+  A clean scan (exit code `0`) means "the implemented heuristics found
+  nothing," not "this circuit is safe."
 
 ## Development
 
@@ -206,6 +266,73 @@ cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
 ```
 
+These three commands are the project's quality gates (see `CLAUDE.md`) and
+are enforced in CI on every push and pull request (`.github/workflows/ci.yml`).
+CI also runs `zk-guard fixtures validate` against the checked-in fixture
+tree as a fourth gate (see "Continuous integration" below).
+
 See `docs/architecture.md` for crate boundaries and the scan pipeline, and
 `docs/rule-taxonomy.md` for the rule specification format used by every
 rule in `zkguard-rules`.
+
+### Running the heavy fuzz campaign manually
+
+`crates/zkguard-fuzz` has one deterministic, fast property-test suite that
+runs as part of `cargo test --workspace` (no long-running fuzzing in
+default CI, per `docs/roadmap.md`'s Phase 9 exit criteria). One heavier
+proptest campaign is marked `#[ignore]` and is never run by `cargo test`
+or CI by default. Run it manually before a release if you want extra
+confidence:
+
+```bash
+cargo test -p zkguard-fuzz --release -- --ignored
+```
+
+## Continuous integration
+
+`.github/workflows/ci.yml` runs on every push to `master` and on every pull
+request, with four jobs:
+
+1. `cargo fmt --all -- --check`
+2. `cargo clippy --workspace --all-targets -- -D warnings`
+3. `cargo test --workspace` (the `#[ignore]`d heavy fuzz campaign above is
+   never run here — default `cargo test` skips ignored tests, and CI does
+   not pass `--ignored`/`--include-ignored`)
+4. `cargo build --release -p zkguard-cli` followed by
+   `./target/release/zk-guard fixtures validate` against the checked-in
+   `fixtures/noir` tree
+
+CI only builds and runs this repository's own code — it never executes
+anything from a scanned target repository, makes no network calls beyond
+crates.io and GitHub Actions itself, and uses no secrets, deploy keys, or
+publishing tokens. There is no release/publish automation yet (see the
+checklist below); a green CI run is required, but not sufficient, before
+tagging a release.
+
+## 0.1.0 release checklist
+
+Mapped to `CLAUDE.md`'s "Definition of done for the first usable release."
+This is the honest, current state — not aspirational:
+
+| Definition-of-done item | Status |
+|---|---|
+| `zk-guard scan` works on a Noir fixture directory | Done — verified against all 23 fixture projects under `fixtures/noir/`. |
+| At least 5 rules implemented | Done — 5 rules registered (`NOIR-PUBLIC-001`, `NOIR-CONSTRAINT-001`, `NOIR-RANGE-001`, `ZK-HASH-001`, `ZK-NULLIFIER-001`); 2 taxonomy rules remain deferred. |
+| JSON and Markdown reports work | Done — both renderers are pure, tested, and produce the documented field shapes. |
+| Tests include vulnerable and safe fixtures | Done — every implemented rule has at least one vulnerable and one safe fixture; several have extra edge-case/false-positive-guard fixtures. |
+| CI runs formatting, clippy, and tests | Done as of this change — `.github/workflows/ci.yml`. |
+| README has install/usage/limitations/examples | Done as of this change — this document. |
+| Docs state this is a best-effort scanner, not a formal verifier | Done — stated above and in `docs/rule-taxonomy.md`'s "Disclaimer." |
+
+Known gaps tracked but intentionally **not** addressed by this release
+step (see `docs/security-review.md` for the full review):
+
+- A single unreadable/non-UTF-8 `.nr` file currently aborts an entire scan
+  instead of being skipped with a warning (`docs/security-review.md` M1).
+  Logic fix, out of scope for CI/docs work.
+- `ZK-REPLAY-001` and `ZK-TEST-001` are specified but not implemented.
+- No SARIF output.
+- No automated release/publish workflow — building a release binary is a
+  manual `cargo build --release -p zkguard-cli` step; there is no package
+  upload, crates.io publish, or tagged-artifact automation, and none should
+  be added without explicit approval.

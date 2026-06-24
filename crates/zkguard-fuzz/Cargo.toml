@@ -8,5 +8,16 @@ repository.workspace = true
 [lints]
 workspace = true
 
+# `zkguard-fuzz` has no downstream consumers (nothing else in the workspace
+# depends on this crate; it only exercises `zkguard-noir`/`zkguard-rules`
+# from the outside, per `docs/agent-workflow.md` Step 9). `zkguard-noir`,
+# `zkguard-rules`, and `proptest` are therefore ordinary dependencies rather
+# than dev-dependencies, so the same generator/strategy code can be shared
+# between `src/` (reusable proptest `Strategy` builders) and the property
+# tests under `tests/`, without proptest leaking into any *other* crate's
+# build (no other crate depends on `zkguard-fuzz`).
 [dependencies]
 zkguard-core = { path = "../zkguard-core" }
+zkguard-noir = { path = "../zkguard-noir" }
+zkguard-rules = { path = "../zkguard-rules" }
+proptest = "1"

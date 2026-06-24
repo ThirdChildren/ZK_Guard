@@ -1,0 +1,27 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/zkguard-cli",
+    "crates/zkguard-core",
+    "crates/zkguard-noir",
+    "crates/zkguard-rules",
+    "crates/zkguard-fuzz",
+    "crates/zkguard-report",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0"
+repository = "https://github.com/zk-guard/zk-guard"
+rust-version = "1.75"
+
+# Workspace-wide lint defaults. Individual crates inherit these via
+# `[lints] workspace = true`. Kept intentionally small at this stage;
+# tighten as the codebase grows (see docs/roadmap.md).
+[workspace.lints.rust]
+unsafe_code = "deny"
+
+[workspace.lints.clippy]
+unwrap_used = "warn"
+expect_used = "warn"

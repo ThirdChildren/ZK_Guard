@@ -1,0 +1,19 @@
+[package]
+name = "zkguard-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[[bin]]
+name = "zk-guard"
+path = "src/main.rs"
+
+[lints]
+workspace = true
+
+[dependencies]
+zkguard-core = { path = "../zkguard-core" }
+zkguard-noir = { path = "../zkguard-noir" }
+zkguard-rules = { path = "../zkguard-rules" }
+zkguard-report = { path = "../zkguard-report" }

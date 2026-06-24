@@ -194,10 +194,23 @@ fn extract_public_params(signature_text: &str, signature_line: u32) -> Vec<Publi
                 .to_string();
             if !name.is_empty() {
                 // Line number: count newlines in the signature up to the
-                // start of this parameter's text for multi-line
-                // signatures; single-line signatures (the common case)
-                // simply resolve to `signature_line`.
-                let param_offset = raw_param.as_ptr() as usize - signature_text.as_ptr() as usize;
+                // start of this parameter's *trimmed* text (not the raw,
+                // comma-split slice) for multi-line signatures; single-line
+                // signatures (the common case) simply resolve to
+                // `signature_line`.
+                //
+                // Small fix noted explicitly (found while building
+                // NOIR-PUBLIC-001 fixtures in Step 5, fixed here as a
+                // small, obvious, low-risk correction per task protocol
+                // rather than left as a silent bug): using `raw_param`'s
+                // offset instead of `trimmed`'s undercounts by one newline
+                // whenever a parameter's raw (untrimmed) slice begins with
+                // the leading `\n` that follows the previous parameter's
+                // comma — that leading newline is the one that actually
+                // puts this parameter's `pub` token on its own line, but it
+                // was previously excluded from the "newlines strictly
+                // before the parameter" count.
+                let param_offset = trimmed.as_ptr() as usize - signature_text.as_ptr() as usize;
                 let line =
                     signature_line + signature_text[..param_offset].matches('\n').count() as u32;
                 params.push(PublicParam {
@@ -480,5 +493,80 @@ mod tests {
     fn assert_eq_keyword_is_recognized() {
         let body = "assert_eq(claimed_total, computed);\n";
         assert!(identifier_appears_in_constraint(body, "claimed_total"));
+    }
+
+    /// GENUINE BUG (not a documented `docs/rule-taxonomy.md` limitation),
+    /// found while building fixtures for Step 5 (`fixtures-test-engineer`).
+    ///
+    /// `find_fn_entry_points` searches for the literal substring `"fn
+    /// main"` and does not skip over `//` line comments (see this
+    /// function's own doc comment: "Does not understand string literals or
+    /// comments containing `{`/`}` ... a known, accepted v1 limitation" —
+    /// that limitation is scoped to brace characters inside
+    /// comments/strings, NOT to the initial `"fn main"` substring search
+    /// itself, which has no comment-awareness at all).
+    ///
+    /// If a `//` comment anywhere above the real `fn main` declaration
+    /// happens to contain the literal text `fn main` followed eventually by
+    /// an opening paren (e.g. ordinary prose like "the `fn main(...)`
+    /// signature" or, as below, a comment that simply says `// fn main is
+    /// the entry point`), the scanner locks onto that comment as the
+    /// "signature start," searches forward for the first `{`/`}` pair
+    /// (which ends up being the REAL function's body, since the comment
+    /// itself has no braces), and then tries to extract `pub` parameters
+    /// from a `signature_text` that is actually comment prose followed by
+    /// the real signature concatenated together. Depending on the exact
+    /// comment wording, this can silently drop real `pub` parameters
+    /// (this test) or, by luck, produce a coincidentally-correct empty
+    /// parameter list (masking the bug rather than failing loudly).
+    ///
+    /// This is `#[ignore]`d rather than fixed here, per the
+    /// `fixtures-test-engineer` task protocol ("If you discover a genuine
+    /// bug ... do NOT silently fix the rule ... add a test marked
+    /// #[ignore]"). Suggested fix direction for whoever picks this up
+    /// (likely `noir-static-analyzer`, Step 7 territory since it touches
+    /// the shared heuristic, not just one rule): strip `//` line comments
+    /// (and ideally block comments) from the source before running any of
+    /// `find_fn_entry_points`'s text search, or require the matched `"fn
+    /// main"` occurrence to start at the beginning of a non-comment line.
+    ///
+    /// Reproduction note: the comment must contain an opening `(` of its
+    /// own (typical of ordinary prose like "(declared `pub`)") *before* the
+    /// real signature's `(` for the bug to corrupt the extracted parameter
+    /// list; a comment mentioning "fn main" with no parenthesis at all
+    /// happens to still resolve correctly, because
+    /// `extract_public_params` finds the comment's `fn main` occurrence but
+    /// then locates the real signature's own `(` as the first parenthesis
+    /// in the (corrupted) `signature_text` span — so this is not a
+    /// reliable mitigation, just a narrower trigger condition.
+    #[test]
+    #[ignore = "genuine bug: find_fn_entry_points does not skip `//` comments \
+                before searching for the literal `fn main` substring, so a \
+                comment merely mentioning the entry point's name (and \
+                containing its own opening paren) can be misidentified as \
+                the real declaration and corrupt signature/param \
+                extraction; see test body and \
+                fixtures/noir/safe/noir-public-001-multiline-signature for \
+                the discovery context. Tracked for noir-static-analyzer, \
+                not fixed by fixtures-test-engineer."]
+    fn comment_mentioning_entry_point_name_corrupts_param_extraction() {
+        let source = "// fn main (the entry point) has no pub params here\n\
+                       fn main(secret: Field, pub claimed_total: Field) {\n\
+                       \x20   assert(secret == claimed_total);\n\
+                       }\n";
+
+        let entries = find_fn_entry_points(source);
+        assert_eq!(entries.len(), 1);
+        // This is the desired/correct behavior, which currently fails: the
+        // real `pub claimed_total` parameter should still be found even
+        // though an earlier comment also contains the text "fn main" and
+        // its own parenthesis.
+        assert_eq!(
+            entries[0].public_params.len(),
+            1,
+            "comment mentioning the entry point's name corrupted parameter \
+             extraction: {:#?}",
+            entries[0]
+        );
     }
 }

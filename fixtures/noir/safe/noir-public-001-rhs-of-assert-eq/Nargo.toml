@@ -1,0 +1,7 @@
+[package]
+name = "noir_public_001_rhs_of_assert_eq"
+type = "bin"
+authors = [""]
+compiler_version = ">=0.30.0"
+
+[dependencies]

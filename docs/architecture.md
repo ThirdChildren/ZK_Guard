@@ -1,9 +1,10 @@
 # zk-guard architecture
 
-Status: architecture skeleton (Step 1 of `docs/agent-workflow.md`). No
-scanner rules, Finding model, or parsing logic exist yet — this document
-describes the intended shape of the system so later steps implement against
-a stable contract.
+Status: architecture skeleton plus core domain model (Steps 1 and 3 of
+`docs/agent-workflow.md`). `zkguard-core` now defines `Finding`, `Severity`,
+`Confidence`, `RuleMetadata`, the `Rule` trait, and `ScanResult` (see
+"Current status" below). No Noir discovery/parsing or concrete rule
+implementations exist yet — those remain Step 4+.
 
 ## Goals and non-goals
 
@@ -91,11 +92,15 @@ discovery -> parse -> rules -> findings -> report
 3. **Rules** (`zkguard-rules`): each rule reads the parsed representation
    and emits zero or more `Finding`s. Rules are independent of each other
    and registered in one registry keyed by `rule_id`.
-4. **Findings** (`zkguard-core`): the `Finding` struct (deferred to Step 3)
-   is the only artifact that crosses from analysis into reporting. Every
-   finding carries rule_id, title, severity, confidence, location,
-   evidence, why_it_matters, and remediation, per CLAUDE.md's reporting
-   schema.
+4. **Findings** (`zkguard-core`): the `Finding` struct (implemented in Step
+   3; see `crates/zkguard-core/src/finding.rs`) is the only artifact that
+   crosses from analysis into reporting. Every finding carries rule_id,
+   title, severity, confidence, location, evidence, why_it_matters, and
+   remediation, per CLAUDE.md's reporting schema. Rules reach this struct
+   through the `Rule` trait (`crates/zkguard-core/src/rule.rs`), which
+   takes a placeholder `SourceView` (path + raw source text) until
+   `zkguard-noir` introduces a richer Noir-specific representation in Step
+   4.
 5. **Report** (`zkguard-report`): renders a list of `Finding`s as JSON or
    Markdown. The CLI selects the format; the report crate has no opinion on
    CLI flags or output destinations beyond "give me findings, return
@@ -136,6 +141,10 @@ independent from the CLI. Concretely:
 
 ## Current status
 
-This is the architecture skeleton only. All crates are empty placeholders
-with no scanner logic. See `docs/roadmap.md` for the phased plan that fills
-in this architecture.
+`zkguard-core` now contains the real domain model: `Finding`, `Severity`,
+`Confidence`, `RuleMetadata`, the `Rule` trait, the placeholder
+`SourceView` input type, and `ScanResult`. `zkguard-noir`, `zkguard-rules`,
+`zkguard-report`, and `zkguard-fuzz` remain empty placeholders with no
+scanner logic — they compile against `zkguard-core` but do not yet
+implement discovery, rules, or report formatting. See `docs/roadmap.md` for
+the phased plan that fills in the rest of this architecture.

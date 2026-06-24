@@ -15,6 +15,5 @@ Cargo.lock.bak
 
 .claude/
 docs/agent-workflow.md
-docs/roadmap.md
 CLAUDE.md
 README-template.md

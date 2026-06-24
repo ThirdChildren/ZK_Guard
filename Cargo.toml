@@ -16,6 +16,14 @@ license = "Apache-2.0"
 repository = "https://github.com/zk-guard/zk-guard"
 rust-version = "1.75"
 
+# Shared dependency versions. Crates pull these in via
+# `dep_name = { workspace = true }` so the whole workspace stays on one
+# version. Keep this list minimal — add entries only when a crate actually
+# needs them (per CLAUDE.md: avoid premature complexity).
+[workspace.dependencies]
+serde = { version = "1", default-features = false, features = ["derive", "std"] }
+serde_json = { version = "1" }
+
 # Workspace-wide lint defaults. Individual crates inherit these via
 # `[lints] workspace = true`. Kept intentionally small at this stage;
 # tighten as the codebase grows (see docs/roadmap.md).

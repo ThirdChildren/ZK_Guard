@@ -7,17 +7,19 @@
 // work on a non-trivial signature shape, not just the single-line happy
 // path.
 //
-// NOTE for fixture maintainers: deliberately avoid writing the entry
-// point's keyword and name back to back anywhere in this header comment,
-// even in backtick-quoted prose. `find_fn_entry_points` is a naive text
-// scan for that exact two-token substring and does not skip `//` comments
-// (see that function's documented limitation); a comment mentioning the
-// entry point by name can itself be misidentified as the real declaration
-// and corrupt signature/body extraction. This is tracked as a genuine bug,
-// not a documented limitation — see `crates/zkguard-noir/tests` for an
-// isolated regression test.
+// NOTE for fixture maintainers (historical): earlier revisions of this
+// comment warned against writing the entry point's keyword and name back
+// to back in fixture prose, because `find_fn_entry_points` used to be a
+// naive text scan with no comment-awareness, so a comment mentioning the
+// entry point by name could be misidentified as the real declaration and
+// corrupt signature/body extraction. As of Step 7 (`noir-static-analyzer`),
+// `find_fn_entry_points` masks `//`/`/* */` comments before searching, so
+// this is no longer a live concern — see
+// `crates/zkguard-noir/src/heuristics.rs`'s `mask_comments` and the
+// (now-passing, no-longer-`#[ignore]`d)
+// `comment_mentioning_entry_point_name_corrupts_param_extraction` test.
 //
-// `claimed_sum` (declared `pub`, line 28 below) IS bound to a real
+// `claimed_sum` (declared `pub`, line 30 below) IS bound to a real
 // constraint, so this is a safe fixture: the rule must not fire just
 // because the signature is unusually formatted.
 //

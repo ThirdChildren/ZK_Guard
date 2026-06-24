@@ -16,9 +16,11 @@
 //!   the given root).
 //! - [`heuristics`]: text-level Noir heuristics shared by rule
 //!   implementations in `zkguard-rules` (entry-point/`pub`-parameter
-//!   extraction, constraint-keyword usage checks). Deliberately not a full
-//!   Noir parser — see that module's doc comment for the rationale and
-//!   known limitations.
+//!   extraction, constraint-keyword usage checks, boolean-binding
+//!   detection, range-sensitive-site detection, hash-call detection, and
+//!   nullifier-naming-convention detection, added across Steps 4 and 7).
+//!   Deliberately not a full Noir parser — see that module's doc comment
+//!   for the rationale and known limitations.
 //!
 //! ## What this crate does **not** contain
 //!
@@ -27,10 +29,10 @@
 //! depend on `zkguard-cli` or `zkguard-report`, keeping analysis
 //! independent from presentation.
 //!
-//! Additional NOIR-*/ZK-* heuristics needed by Step 7 rules
-//! (`NOIR-CONSTRAINT-001`, `NOIR-RANGE-001`, `ZK-HASH-001`,
-//! `ZK-NULLIFIER-001`) are deferred to that step, not scaffolded ahead of
-//! need.
+//! As of Step 7, this module also fixes a genuine bug in
+//! [`heuristics::find_fn_entry_points`] (comment-blindness when searching
+//! for the literal `"fn main"` substring) by masking `//`/`/* */` comments
+//! before any text search — see [`heuristics::mask_comments`].
 
 pub mod discovery;
 pub mod heuristics;

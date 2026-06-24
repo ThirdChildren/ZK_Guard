@@ -221,8 +221,12 @@ fn cross_function_fixture_pins_current_false_positive() {
 
 /// Case 7 (detailed): confirms `extract_public_params` correctly resolves
 /// the multi-line signature's `pub` parameter to the right line number
-/// (line 28 in the fixture file, where `pub    claimed_sum : Field,` is
+/// (line 30 in the fixture file, where `pub    claimed_sum : Field,` is
 /// declared) — exercising line-number math, not just a finding count of 0.
+/// (Line number shifted from the original 28 to 30 in Step 7 when this
+/// fixture's header comment was updated to describe the
+/// `find_fn_entry_points` comment-masking fix — a deliberate consequence of
+/// editing the fixture, not a detection regression.)
 ///
 /// We can't assert a finding's line directly here since there is no
 /// finding (the fixture is safe), so instead this test goes one level
@@ -252,7 +256,7 @@ fn multiline_signature_fixture_extracts_pub_param_at_correct_line() {
     );
     let param = &entry.public_params[0];
     assert_eq!(param.name, "claimed_sum");
-    assert_eq!(param.line, 28);
+    assert_eq!(param.line, 30);
 }
 
 #[test]

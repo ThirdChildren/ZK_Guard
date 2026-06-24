@@ -12,7 +12,11 @@
 
 use zkguard_core::Rule;
 
+use crate::noir_constraint_001::NoirConstraint001;
 use crate::noir_public_001::NoirPublic001;
+use crate::noir_range_001::NoirRange001;
+use crate::zk_hash_001::ZkHash001;
+use crate::zk_nullifier_001::ZkNullifier001;
 
 /// Returns every rule currently implemented, in a stable, deterministic
 /// order (declaration order below). `zk-guard rules list` and `zk-guard
@@ -24,7 +28,13 @@ use crate::noir_public_001::NoirPublic001;
 /// types without an enum.
 #[must_use]
 pub fn registry() -> Vec<Box<dyn Rule>> {
-    vec![Box::new(NoirPublic001)]
+    vec![
+        Box::new(NoirPublic001),
+        Box::new(NoirConstraint001),
+        Box::new(NoirRange001),
+        Box::new(ZkHash001),
+        Box::new(ZkNullifier001),
+    ]
 }
 
 #[cfg(test)]
@@ -34,8 +44,39 @@ mod tests {
     #[test]
     fn registry_contains_noir_public_001() {
         let rules = registry();
-        assert_eq!(rules.len(), 1);
-        assert_eq!(rules[0].metadata().rule_id, "NOIR-PUBLIC-001");
+        assert!(rules
+            .iter()
+            .any(|r| r.metadata().rule_id == "NOIR-PUBLIC-001"));
+    }
+
+    #[test]
+    fn registry_contains_noir_constraint_001() {
+        let rules = registry();
+        assert!(rules
+            .iter()
+            .any(|r| r.metadata().rule_id == "NOIR-CONSTRAINT-001"));
+    }
+
+    #[test]
+    fn registry_contains_noir_range_001() {
+        let rules = registry();
+        assert!(rules
+            .iter()
+            .any(|r| r.metadata().rule_id == "NOIR-RANGE-001"));
+    }
+
+    #[test]
+    fn registry_contains_zk_hash_001() {
+        let rules = registry();
+        assert!(rules.iter().any(|r| r.metadata().rule_id == "ZK-HASH-001"));
+    }
+
+    #[test]
+    fn registry_contains_zk_nullifier_001() {
+        let rules = registry();
+        assert!(rules
+            .iter()
+            .any(|r| r.metadata().rule_id == "ZK-NULLIFIER-001"));
     }
 
     #[test]

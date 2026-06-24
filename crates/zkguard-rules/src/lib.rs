@@ -6,19 +6,29 @@
 //! domain types (`Finding`, `Severity`, `Confidence`, scanner traits) from
 //! `zkguard-core`, and emits `Finding` values.
 //!
-//! ## What this crate contains (Step 4 of `docs/agent-workflow.md`)
+//! ## What this crate contains (Step 4 + Step 7 of `docs/agent-workflow.md`)
 //!
 //! - [`noir_public_001`]: the `NOIR-PUBLIC-001` rule ("public input
 //!   declared but unused in a constraint-relevant expression"), per
 //!   `docs/rule-taxonomy.md`.
+//! - [`noir_constraint_001`]: the `NOIR-CONSTRAINT-001` rule ("computed
+//!   boolean/equality/range check not asserted"), per
+//!   `docs/rule-taxonomy.md`.
+//! - [`noir_range_001`]: the `NOIR-RANGE-001` rule ("numeric value used in a
+//!   security-sensitive context without an obvious range check"), per
+//!   `docs/rule-taxonomy.md`.
+//! - [`zk_hash_001`]: the `ZK-HASH-001` rule ("hash commitment built from
+//!   ambiguous concatenation or missing domain tag"), per
+//!   `docs/rule-taxonomy.md`.
+//! - [`zk_nullifier_001`]: the `ZK-NULLIFIER-001` rule ("nullifier-like
+//!   value generated without a visible domain separator"), per
+//!   `docs/rule-taxonomy.md`. This completes Step 7's rule list.
 //!
-//! ## What this crate does not yet contain (deferred to Step 7)
+//! ## What this crate does not yet contain (deferred past Step 7)
 //!
-//! The remaining MVP rule implementations from CLAUDE.md's "MVP rule
-//! families" section: `NOIR-CONSTRAINT-001`, `NOIR-RANGE-001`,
-//! `ZK-NULLIFIER-001`, `ZK-REPLAY-001`, `ZK-HASH-001`, `ZK-TEST-001`. Each
-//! rule lands with its own fixture pair and tests, per non-negotiable
-//! design principle 9, when implemented.
+//! `ZK-REPLAY-001` and `ZK-TEST-001` from CLAUDE.md's "MVP rule families"
+//! section. Each rule lands with its own fixture pair and tests, per
+//! non-negotiable design principle 9, when implemented.
 //!
 //! [`registry::registry`] is the single source of truth for "which rules
 //! exist": both `zk-guard scan` and `zk-guard rules list` (Step 6 of
@@ -29,8 +39,16 @@
 //! title, severity, confidence, location, evidence, why_it_matters, and
 //! remediation.
 
+pub mod noir_constraint_001;
 pub mod noir_public_001;
+pub mod noir_range_001;
 pub mod registry;
+pub mod zk_hash_001;
+pub mod zk_nullifier_001;
 
+pub use noir_constraint_001::NoirConstraint001;
 pub use noir_public_001::NoirPublic001;
+pub use noir_range_001::NoirRange001;
 pub use registry::registry;
+pub use zk_hash_001::ZkHash001;
+pub use zk_nullifier_001::ZkNullifier001;

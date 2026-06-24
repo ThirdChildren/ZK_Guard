@@ -10,3 +10,4 @@ workspace = true
 
 [dependencies]
 zkguard-core = { path = "../zkguard-core" }
+serde_json = { workspace = true }

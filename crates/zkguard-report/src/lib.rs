@@ -2,21 +2,32 @@
 //!
 //! This crate is the "report" stage of the pipeline in
 //! `docs/architecture.md` (discovery -> parse -> rules -> findings ->
-//! **report**). It consumes `Finding` values from `zkguard-core` and
-//! renders them for humans and machines. It must remain independent of the
-//! CLI argument-parsing layer (`zkguard-cli`), per CLAUDE.md design
-//! principle 7.
+//! **report**). It consumes [`zkguard_core::ScanResult`]/[`zkguard_core::Finding`]
+//! values and renders them for humans and machines. It must remain
+//! independent of the CLI argument-parsing layer (`zkguard-cli`), per
+//! CLAUDE.md design principle 7: every function here is a pure
+//! `&ScanResult -> String` (or `Result<String, _>`) transform with no
+//! filesystem access, no network calls, and no process exit-code logic —
+//! those are `zkguard-cli`'s job.
 //!
-//! ## What this crate will contain (deferred work)
+//! ## What this crate contains (Step 6 of `docs/agent-workflow.md`)
 //!
-//! - A JSON emitter matching the `Finding` schema in CLAUDE.md's
-//!   "Reporting schema" section, machine-readable per design principle 6.
-//!   Implemented in Step 6.
-//! - A Markdown emitter for human-readable reports (`--format markdown
-//!   --output report.md`), implemented in Step 6.
-//! - A SARIF emitter, explicitly deferred ("later") past the 0.1.0 release
-//!   per CLAUDE.md's crate description for `zkguard-report`.
+//! - [`json`]: machine-readable JSON emitter, matching CLAUDE.md's
+//!   "Reporting schema" field names exactly (the schema is already encoded
+//!   in `zkguard_core::Finding`'s `serde` derive; this module just exposes
+//!   a stable pretty-printing entry point).
+//! - [`markdown`]: human-readable Markdown emitter, readable directly on
+//!   GitHub (summary table + one section per finding).
+//! - [`human`]: human-readable terminal emitter (the default `zk-guard
+//!   scan` output with no `--format` flag).
 //!
-//! This is currently a placeholder so the workspace compiles.
+//! ## What this crate does **not** yet contain
+//!
+//! A SARIF emitter is an explicit, named future extension (not part of
+//! 0.1.0 scope per `docs/roadmap.md`); it is not scaffolded ahead of need.
 
-pub mod placeholder;
+pub mod human;
+pub mod json;
+pub mod markdown;
+
+pub use json::JsonReportError;

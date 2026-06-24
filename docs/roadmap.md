@@ -95,14 +95,16 @@ Maps to Step 5 (`fixtures-test-engineer`).
 
 Maps to Step 6 (`cli-reporting-engineer`).
 
-- [ ] `zk-guard scan <path>` (default human-readable output).
-- [ ] `--format json`, `--format markdown --output report.md`.
-- [ ] `zk-guard rules list`.
-- [ ] `zk-guard fixtures validate`.
-- [ ] Documented exit codes.
+- [x] `zk-guard scan <path>` (default human-readable output).
+- [x] `--format json`, `--format markdown --output report.md`.
+- [x] `zk-guard rules list`.
+- [x] `zk-guard fixtures validate`.
+- [x] Documented exit codes.
 - Exit criteria: matches CLAUDE.md's "Definition of done for the first
   usable release" — `zk-guard scan` works on a fixture directory, JSON and
   Markdown both work, README documents installation/usage/limitations.
+  Met for the rule set implemented so far (`NOIR-PUBLIC-001`); overall
+  0.1.0 readiness still depends on Phase 7 reaching at least 5 rules.
 
 ## Phase 7 - Additional rules
 

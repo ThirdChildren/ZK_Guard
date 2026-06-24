@@ -1,27 +1,46 @@
 //! `zkguard-cli`: CLI entrypoint (binary name `zk-guard`).
 //!
-//! This crate must contain CLI wiring only: argument parsing, dispatching
-//! to `zkguard-noir` / `zkguard-rules` / `zkguard-report`, and process exit
-//! codes. Per CLAUDE.md design principle 7, the core analysis engine
-//! (`zkguard-core`, `zkguard-noir`, `zkguard-rules`) must stay independent
-//! of this crate; this crate depends on them, never the other way around.
+//! This crate contains CLI wiring only: argument parsing (`cli` module),
+//! dispatching to `zkguard-noir` / `zkguard-rules` / `zkguard-report`
+//! (`commands` module), and process exit codes (`exit_code` module). Per
+//! CLAUDE.md design principle 7, the core analysis engine (`zkguard-core`,
+//! `zkguard-noir`, `zkguard-rules`) stays independent of this crate; this
+//! crate depends on them, never the other way around. `main` itself is
+//! intentionally a few lines: parse arguments, dispatch, exit.
 //!
-//! ## What this crate will contain (deferred work, Step 6)
+//! ## Commands implemented (Step 6 of `docs/agent-workflow.md`)
 //!
-//! - `zk-guard scan <path>` with `--format json|markdown` and `--output`.
-//! - `zk-guard rules list`.
-//! - `zk-guard fixtures validate`.
-//! - Documented process exit codes (e.g. findings-found vs. error vs.
-//!   clean scan), per CLAUDE.md's MVP commands section.
+//! - `zk-guard scan <path> [--format human|json|markdown] [--output FILE]
+//!   [--fail-on SEVERITY]`
+//! - `zk-guard rules list [--format human|json|markdown]`
+//! - `zk-guard fixtures validate [--path DIR]`
 //!
-//! This binary currently only prints a placeholder so the workspace
-//! compiles and the binary target is exercisable end-to-end before any
-//! argument parsing or scan pipeline exists.
+//! See `crate::exit_code` for the documented exit-code policy and
+//! `README.md` for end-user usage examples.
+
+mod cli;
+mod commands;
+mod exit_code;
+
+use clap::Parser;
+
+use cli::{Cli, Command, FixturesCommand, RulesCommand};
 
 fn main() {
-    println!(
-        "zk-guard {} (architecture skeleton, no commands implemented yet)",
-        env!("CARGO_PKG_VERSION")
-    );
-    println!("See docs/roadmap.md for the MVP command implementation plan.");
+    let cli = Cli::parse();
+
+    let mut stdout = std::io::stdout();
+    let mut stderr = std::io::stderr();
+
+    let code = match &cli.command {
+        Command::Scan(args) => commands::scan::run(args, &mut stdout, &mut stderr),
+        Command::Rules(RulesCommand::List(args)) => {
+            commands::rules::run(args, &mut stdout, &mut stderr)
+        }
+        Command::Fixtures(FixturesCommand::Validate(args)) => {
+            commands::fixtures::run(args, &mut stdout, &mut stderr)
+        }
+    };
+
+    std::process::exit(code);
 }

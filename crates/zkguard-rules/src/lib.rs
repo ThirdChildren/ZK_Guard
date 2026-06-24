@@ -20,15 +20,17 @@
 //! rule lands with its own fixture pair and tests, per non-negotiable
 //! design principle 9, when implemented.
 //!
-//! There is also no rule registry yet (no `Box<dyn Rule>` collection keyed
-//! by `rule_id`) — `zkguard-cli`'s `zk-guard rules list` command (Step 6)
-//! will need one, but a single-rule crate does not need it yet, per
-//! CLAUDE.md's guidance to avoid premature complexity.
+//! [`registry::registry`] is the single source of truth for "which rules
+//! exist": both `zk-guard scan` and `zk-guard rules list` (Step 6 of
+//! `docs/agent-workflow.md`) call it, so the two commands can never
+//! disagree about the rule set.
 //!
 //! Per design principle 2, every emitted `Finding` must carry rule_id,
 //! title, severity, confidence, location, evidence, why_it_matters, and
 //! remediation.
 
 pub mod noir_public_001;
+pub mod registry;
 
 pub use noir_public_001::NoirPublic001;
+pub use registry::registry;

@@ -141,10 +141,31 @@ independent from the CLI. Concretely:
 
 ## Current status
 
-`zkguard-core` now contains the real domain model: `Finding`, `Severity`,
+`zkguard-core` contains the real domain model: `Finding`, `Severity`,
 `Confidence`, `RuleMetadata`, the `Rule` trait, the placeholder
-`SourceView` input type, and `ScanResult`. `zkguard-noir`, `zkguard-rules`,
-`zkguard-report`, and `zkguard-fuzz` remain empty placeholders with no
-scanner logic — they compile against `zkguard-core` but do not yet
-implement discovery, rules, or report formatting. See `docs/roadmap.md` for
-the phased plan that fills in the rest of this architecture.
+`SourceView` input type, and `ScanResult`. `zkguard-noir` implements safe
+Noir project discovery and the text-level heuristics `NOIR-PUBLIC-001`
+needs. `zkguard-rules` implements `NOIR-PUBLIC-001` end-to-end and exposes
+a `registry()` function (`crates/zkguard-rules/src/registry.rs`) that is
+the single source of truth for "which rules exist," consumed by both
+`zkguard-cli`'s `scan` and `rules list` commands.
+
+`zkguard-report` (Step 6) implements three pure renderers over
+`ScanResult`: `json` (machine-readable, matches CLAUDE.md's reporting
+schema field names exactly), `markdown` (GitHub-readable summary +
+per-finding sections), and `human` (the default terminal output). All
+three are `&ScanResult -> String` functions with no I/O.
+
+`zkguard-cli` (Step 6) implements `zk-guard scan`, `zk-guard rules list`,
+and `zk-guard fixtures validate` via `clap`'s derive API
+(`crates/zkguard-cli/src/cli.rs`), with command logic in
+`crates/zkguard-cli/src/commands/` and a documented exit-code policy in
+`crates/zkguard-cli/src/exit_code.rs` (also mirrored in `README.md`). The
+binary remains a thin orchestration layer: it calls `zkguard_noir::discover`,
+`zkguard_rules::registry()`, and `zkguard_report::{json,markdown,human}::render`
+and contains no discovery, parsing, or rule logic of its own.
+
+`zkguard-fuzz` remains an empty placeholder, deferred to Step 9 per
+CLAUDE.md ("fuzzing second"). See `docs/roadmap.md` for the phased plan
+that fills in the remaining MVP rules (Phase 7) ahead of the 0.1.0
+release.

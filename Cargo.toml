@@ -13,7 +13,7 @@ members = [
 version = "0.1.0"
 edition = "2021"
 license = "Apache-2.0"
-repository = "https://github.com/zk-guard/zk-guard"
+repository = "https://github.com/ThirdChildren/ZK_Guard"
 rust-version = "1.75"
 
 # Shared dependency versions. Crates pull these in via

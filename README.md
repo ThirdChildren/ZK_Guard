@@ -28,7 +28,7 @@ end-to-end** and registered in `crates/zkguard-rules/src/registry.rs`:
 See `docs/rule-taxonomy.md` for each rule's full detection strategy,
 false-positive notes, and fixture requirements.
 
-**Two MVP rules from `CLAUDE.md`'s taxonomy are deferred, not implemented:**
+**Two MVP rules from the rule taxonomy are deferred, not implemented:**
 `ZK-REPLAY-001` (project-level replay/uniqueness-binding check) and
 `ZK-TEST-001` (negative/`should_fail` test-coverage check). They are
 documented in `docs/rule-taxonomy.md` and tracked in `docs/roadmap.md`
@@ -68,7 +68,7 @@ zk-guard scan ./path/to/noir-project
 `<path>` may be a Noir project directory (containing `Nargo.toml`/`src/`)
 or a single `.nr` file. Discovery never executes anything found in the
 scanned tree, never follows symlinks, and never performs network access
-(see `CLAUDE.md`'s "Security boundaries").
+(see `docs/architecture.md`'s "Goals and non-goals").
 
 Default output is plain text to stdout. This is the real output of
 `zk-guard scan fixtures/noir/vulnerable/noir-public-001`:
@@ -103,8 +103,9 @@ zk-guard scan ./path/to/noir-project --format json
 ```
 
 Emits the scan result as pretty-printed JSON to stdout. Field names and
-lowercase `severity`/`confidence` strings match `CLAUDE.md`'s "Reporting
-schema" exactly, so the shape is stable for CI parsing. This is the real
+lowercase `severity`/`confidence` strings follow the documented reporting
+schema (see `docs/rule-taxonomy.md`), so the shape is stable for CI
+parsing. This is the real
 output of
 `zk-guard scan fixtures/noir/vulnerable/zk-nullifier-001-unhashed --format json`:
 
@@ -240,7 +241,7 @@ gaps behind this general statement.
 
 Concretely, as of `0.1.0`:
 
-- **5 of 7** MVP rules from `CLAUDE.md`'s taxonomy are implemented
+- **5 of 7** MVP rules from the rule taxonomy are implemented
   (`NOIR-PUBLIC-001`, `NOIR-CONSTRAINT-001`, `NOIR-RANGE-001`,
   `ZK-HASH-001`, `ZK-NULLIFIER-001`). `ZK-REPLAY-001` and `ZK-TEST-001` are
   specified in `docs/rule-taxonomy.md` but not yet implemented — they do
@@ -266,8 +267,8 @@ cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
 ```
 
-These three commands are the project's quality gates (see `CLAUDE.md`) and
-are enforced in CI on every push and pull request (`.github/workflows/ci.yml`).
+These three commands are the project's quality gates and are enforced in
+CI on every push and pull request (`.github/workflows/ci.yml`).
 CI also runs `zk-guard fixtures validate` against the checked-in fixture
 tree as a fourth gate (see "Continuous integration" below).
 
@@ -311,7 +312,7 @@ tagging a release.
 
 ## 0.1.0 release checklist
 
-Mapped to `CLAUDE.md`'s "Definition of done for the first usable release."
+Mapped to the project's definition of done for the first usable release.
 This is the honest, current state — not aspirational:
 
 | Definition-of-done item | Status |
@@ -325,11 +326,11 @@ This is the honest, current state — not aspirational:
 | Docs state this is a best-effort scanner, not a formal verifier | Done — stated above and in `docs/rule-taxonomy.md`'s "Disclaimer." |
 
 Known gaps tracked but intentionally **not** addressed by this release
-step (see `docs/security-review.md` for the full review):
+step:
 
 - A single unreadable/non-UTF-8 `.nr` file currently aborts an entire scan
-  instead of being skipped with a warning (`docs/security-review.md` M1).
-  Logic fix, out of scope for CI/docs work.
+  instead of being skipped with a warning. Logic fix, out of scope for
+  CI/docs work.
 - `ZK-REPLAY-001` and `ZK-TEST-001` are specified but not implemented.
 - No SARIF output.
 - No automated release/publish workflow — building a release binary is a

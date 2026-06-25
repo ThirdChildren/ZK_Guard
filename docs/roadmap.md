@@ -11,17 +11,17 @@ zk-guard moves through these maturity levels. Do not skip ahead — each
 level should be working and tested before the next starts.
 
 1. **Empty repo** -- no workspace exists.
-2. **Skeleton workspace** (this phase) -- crates compile, no scanner logic.
+2. **Skeleton workspace** -- crates compile, no scanner logic.
 3. **Static scanner MVP** -- domain model + Noir discovery + first rules
    working against fixtures, no CLI yet.
 4. **CLI/reporting MVP** -- `zk-guard scan` works end-to-end with JSON and
    Markdown output. This is the 0.1.0 release target.
 5. **Fuzzing extension** -- deterministic property/mutation tests layered
    on top of stable static rules.
-6. **Release hardening** -- CI, packaging, docs polish, broader rule
-   coverage.
+6. **Release hardening** (current) -- CI, packaging, docs polish, broader
+   rule coverage.
 
-## Phase 1 - Architecture skeleton (current)
+## Phase 1 - Architecture skeleton (complete)
 
 Maps to Step 1 of `docs/agent-workflow.md`.
 
@@ -69,27 +69,30 @@ Maps to Step 3 (`zk-project-architect`).
   --workspace`, `cargo test --workspace`, and `cargo clippy --workspace
   --all-targets -- -D warnings` all pass.
 
-## Phase 4 - First static rule (static scanner MVP begins)
+## Phase 4 - First static rule (static scanner MVP begins) (complete)
 
 Maps to Step 4 (`noir-static-analyzer`).
 
-- [ ] Noir project discovery in `zkguard-noir` (find `Nargo.toml` / `src/`,
+- [x] Noir project discovery in `zkguard-noir` (find `Nargo.toml` / `src/`,
       safe traversal, no symlink loops, no script execution).
-- [ ] `NOIR-PUBLIC-001` implemented in `zkguard-rules`.
-- [ ] One vulnerable + one safe fixture under `fixtures/noir/`, with unit
+- [x] `NOIR-PUBLIC-001` implemented in `zkguard-rules`.
+- [x] One vulnerable + one safe fixture under `fixtures/noir/`, with unit
       tests.
 - Exit criteria: a rule runs end-to-end against a fixture directory and
   produces a correct `Finding` (or no finding) without going through the
-  CLI.
+  CLI. **Met.**
 
-## Phase 5 - Fixture coverage
+## Phase 5 - Fixture coverage (complete)
 
 Maps to Step 5 (`fixtures-test-engineer`).
 
-- [ ] Fixture review for all rules implemented so far.
-- [ ] Regression tests added for any gaps.
+- [x] Fixture review for all rules implemented so far.
+- [x] Regression tests added for any gaps.
 - Exit criteria: every implemented rule has at least one vulnerable and one
-  safe fixture, per CLAUDE.md non-negotiable design principle 9.
+  safe fixture, per CLAUDE.md non-negotiable design principle 9. **Met** —
+  23 fixture projects under `fixtures/noir/`, including edge-case and
+  false-positive-guard fixtures, exercised by `zkguard-rules`' integration
+  tests.
 
 ## Phase 6 - CLI and reports (CLI/reporting MVP, 0.1.0 target)
 
@@ -103,52 +106,65 @@ Maps to Step 6 (`cli-reporting-engineer`).
 - Exit criteria: matches CLAUDE.md's "Definition of done for the first
   usable release" — `zk-guard scan` works on a fixture directory, JSON and
   Markdown both work, README documents installation/usage/limitations.
-  Met for the rule set implemented so far (`NOIR-PUBLIC-001`); overall
-  0.1.0 readiness still depends on Phase 7 reaching at least 5 rules.
+  **Met** — all three output formats (human/JSON/Markdown), `rules list`,
+  and `fixtures validate` ship, with the exit-code scheme documented in
+  `crates/zkguard-cli/src/exit_code.rs` and `README.md`.
 
-## Phase 7 - Additional rules
+## Phase 7 - Additional rules (complete)
 
 Maps to Step 7 (`noir-static-analyzer`), interleaved with Phase 6 as
 needed since 0.1.0 requires at least 5 rules.
 
-- [ ] `NOIR-CONSTRAINT-001`, `NOIR-RANGE-001`, `ZK-HASH-001`,
-      `ZK-NULLIFIER-001` (and `ZK-REPLAY-001`, `ZK-TEST-001` if time
-      allows before 0.1.0; otherwise immediately after).
+- [x] `NOIR-CONSTRAINT-001`, `NOIR-RANGE-001`, `ZK-HASH-001`,
+      `ZK-NULLIFIER-001` implemented with fixtures and tests.
+- [ ] `ZK-REPLAY-001`, `ZK-TEST-001` — deferred to post-0.1.0 (specified in
+      `docs/rule-taxonomy.md`, not yet implemented). `ZK-REPLAY-001` is
+      project-level and needs cross-file aggregation or a `Rule`-trait
+      change.
 - Exit criteria: at least 5 of the 7 MVP rules implemented with fixtures
-  and tests, satisfying the 0.1.0 rule-count requirement.
+  and tests, satisfying the 0.1.0 rule-count requirement. **Met** — 5 rules
+  registered.
 
-## Phase 8 - Security review
+## Phase 8 - Security review (complete)
 
 Maps to Step 8 (`security-reviewer`), run before any 0.1.0 tag.
 
-- [ ] Review for dangerous execution behavior, misleading findings, missing
+- [x] Review for dangerous execution behavior, misleading findings, missing
       fixtures, unsafe filesystem traversal, overclaimed guarantees.
 - Exit criteria: review result is "pass" or "pass-with-issues" with issues
-  tracked, not "fail".
+  tracked, not "fail". **Met** — verdict `pass-with-issues`; the one
+  medium finding still open is the unreadable/non-UTF-8 `.nr` file aborting
+  a whole scan (tracked in the README's known-gaps list).
 
-## Phase 9 - Fuzzing extension (post-0.1.0)
+## Phase 9 - Fuzzing extension (complete)
 
 Maps to Step 9 (`fuzzing-harness-engineer`). Only starts after static rules
 are stable (Phase 7/8 complete).
 
-- [ ] Deterministic property-based tests for existing static rules in
-      `zkguard-fuzz`.
-- [ ] No long-running fuzzing added to default CI.
+- [x] Deterministic property-based tests for existing static rules in
+      `zkguard-fuzz` (no-panic/totality, determinism, finding
+      well-formedness, directional safe/vulnerable shapes), fixed-seed
+      `proptest`.
+- [x] No long-running fuzzing added to default CI — one heavier campaign is
+      `#[ignore]`d and only run manually
+      (`cargo test -p zkguard-fuzz --release -- --ignored`).
 - Exit criteria: fuzz/property tests run in normal `cargo test` time
   budgets and catch at least one class of bug a hand-written fixture
-  wouldn't.
+  wouldn't. **Met** — `cargo test -p zkguard-fuzz` runs in seconds.
 
-## Phase 10 - Release hardening
+## Phase 10 - Release hardening (complete)
 
 Maps to Step 10 (`ci-release-engineer`).
 
-- [ ] GitHub Actions: `cargo fmt --check`, `cargo clippy -D warnings`,
-      `cargo test --workspace`, fixture validation.
-- [ ] README: installation, usage, examples, limitations, and an explicit
+- [x] GitHub Actions: `cargo fmt --check`, `cargo clippy -D warnings`,
+      `cargo test --workspace`, fixture validation (`.github/workflows/ci.yml`).
+- [x] README: installation, usage, examples, limitations, and an explicit
       statement that this is a best-effort scanner, not a formal verifier.
-- [ ] 0.1.0 release checklist satisfied end-to-end.
+- [x] 0.1.0 release checklist satisfied end-to-end (see `README.md`).
 - Exit criteria: CI is green on a clean clone; tagging 0.1.0 requires no
-  manual undocumented steps.
+  manual undocumented steps. **Met** for the implemented scope; the version
+  is still tagged `0.1.0-unreleased` (see `CHANGELOG.md`) pending a release
+  decision.
 
 ## Explicitly out of scope for 0.1.0
 

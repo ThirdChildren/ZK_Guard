@@ -1,10 +1,12 @@
 # zk-guard architecture
 
-Status: architecture skeleton plus core domain model (Steps 1 and 3 of
-`docs/agent-workflow.md`). `zkguard-core` now defines `Finding`, `Severity`,
-`Confidence`, `RuleMetadata`, the `Rule` trait, and `ScanResult` (see
-"Current status" below). No Noir discovery/parsing or concrete rule
-implementations exist yet — those remain Step 4+.
+Status: 0.1.0-ready (all ten steps of `docs/agent-workflow.md` complete).
+`zkguard-core` defines `Finding`, `Severity`, `Confidence`, `RuleMetadata`,
+the `Rule` trait, and `ScanResult`; `zkguard-noir` does safe Noir discovery
+and text heuristics; `zkguard-rules` implements five rules behind a
+registry; `zkguard-report` renders JSON/Markdown/human output; `zkguard-cli`
+exposes the `zk-guard` binary; and `zkguard-fuzz` holds deterministic
+property tests. See "Current status" below.
 
 ## Goals and non-goals
 
@@ -142,13 +144,18 @@ independent from the CLI. Concretely:
 ## Current status
 
 `zkguard-core` contains the real domain model: `Finding`, `Severity`,
-`Confidence`, `RuleMetadata`, the `Rule` trait, the placeholder
-`SourceView` input type, and `ScanResult`. `zkguard-noir` implements safe
-Noir project discovery and the text-level heuristics `NOIR-PUBLIC-001`
-needs. `zkguard-rules` implements `NOIR-PUBLIC-001` end-to-end and exposes
-a `registry()` function (`crates/zkguard-rules/src/registry.rs`) that is
-the single source of truth for "which rules exist," consumed by both
-`zkguard-cli`'s `scan` and `rules list` commands.
+`Confidence`, `RuleMetadata`, the `Rule` trait, the `SourceView` input
+type, and `ScanResult`. `zkguard-noir` implements safe Noir project
+discovery and the text-level heuristics the rules need. `zkguard-rules`
+implements five rules end-to-end — `NOIR-PUBLIC-001`, `NOIR-CONSTRAINT-001`,
+`NOIR-RANGE-001`, `ZK-HASH-001`, and `ZK-NULLIFIER-001` — and exposes a
+`registry()` function (`crates/zkguard-rules/src/registry.rs`) that is the
+single source of truth for "which rules exist," consumed by both
+`zkguard-cli`'s `scan` and `rules list` commands. The two remaining MVP
+taxonomy rules, `ZK-REPLAY-001` and `ZK-TEST-001`, are specified in
+`docs/rule-taxonomy.md` but not yet implemented (`ZK-REPLAY-001` is
+project-level and will need cross-file aggregation or a `Rule`-trait change
+when scheduled).
 
 `zkguard-report` (Step 6) implements three pure renderers over
 `ScanResult`: `json` (machine-readable, matches CLAUDE.md's reporting
@@ -165,7 +172,12 @@ binary remains a thin orchestration layer: it calls `zkguard_noir::discover`,
 `zkguard_rules::registry()`, and `zkguard_report::{json,markdown,human}::render`
 and contains no discovery, parsing, or rule logic of its own.
 
-`zkguard-fuzz` remains an empty placeholder, deferred to Step 9 per
-CLAUDE.md ("fuzzing second"). See `docs/roadmap.md` for the phased plan
-that fills in the remaining MVP rules (Phase 7) ahead of the 0.1.0
-release.
+`zkguard-fuzz` (Step 9) is no longer a placeholder: it holds deterministic,
+bounded `proptest` property tests over the registry — no-panic/totality,
+determinism, finding well-formedness, and directional safe/vulnerable
+shape checks — that run inside `cargo test --workspace`. One heavier
+campaign is `#[ignore]`d and never runs in default CI. `.github/workflows/ci.yml`
+(Step 10) gates every push/PR on `cargo fmt --check`, `cargo clippy
+-D warnings`, `cargo test --workspace`, and `zk-guard fixtures validate`.
+See `docs/roadmap.md` for the phased plan and the post-0.1.0 follow-ups
+(`ZK-REPLAY-001`, `ZK-TEST-001`, SARIF, Circom/zkVM).

@@ -116,14 +116,13 @@ Maps to Step 7 (`noir-static-analyzer`), interleaved with Phase 6 as
 needed since 0.1.0 requires at least 5 rules.
 
 - [x] `NOIR-CONSTRAINT-001`, `NOIR-RANGE-001`, `ZK-HASH-001`,
-      `ZK-NULLIFIER-001` implemented with fixtures and tests.
-- [ ] `ZK-REPLAY-001`, `ZK-TEST-001` — deferred to post-0.1.0 (specified in
-      `docs/rule-taxonomy.md`, not yet implemented). `ZK-REPLAY-001` is
-      project-level and needs cross-file aggregation or a `Rule`-trait
-      change.
+      `ZK-NULLIFIER-001` implemented with fixtures and tests (0.1.0).
+- [x] `ZK-TEST-001` implemented as a project-level rule (0.2.0; see the
+      0.2.0 section below).
+- [ ] `ZK-REPLAY-001` — still deferred (project-level; planned for 0.3.0).
 - Exit criteria: at least 5 of the 7 MVP rules implemented with fixtures
-  and tests, satisfying the 0.1.0 rule-count requirement. **Met** — 5 rules
-  registered.
+  and tests, satisfying the 0.1.0 rule-count requirement. **Met at 0.1.0**
+  with 5 rules; 6 are implemented as of 0.2.0.
 
 ## Phase 8 - Security review (complete)
 
@@ -172,9 +171,9 @@ Maps to Step 10 (`ci-release-engineer`).
 - Any network calls, telemetry, or remote rule updates.
 - Auto-execution of anything inside a scanned repository.
 
-## 0.2.0 (in progress)
+## 0.2.0 (released)
 
-The 0.2.0 line makes zk-guard usable in real CI. Targets, in order:
+The 0.2.0 line made zk-guard usable in real CI. All targets shipped:
 
 - [x] **SARIF report output** (`zk-guard scan --format sarif`) in
       `zkguard-report`, for GitHub code-scanning / CI integration alongside
@@ -195,5 +194,27 @@ The 0.2.0 line makes zk-guard usable in real CI. Targets, in order:
       `docs/rule-taxonomy.md`.
 
 `ZK-REPLAY-001` (project-level replay/uniqueness binding) remains specified
-but unscheduled. The `ProjectRule` trait added for `ZK-TEST-001` is the
-mechanism it will use when scheduled; it is **not** part of 0.2.0.
+but unimplemented after 0.2.0 (see the 0.3.0 plan below). The `ProjectRule`
+trait added for `ZK-TEST-001` is the mechanism it will use.
+
+## 0.3.0 (planned)
+
+The 0.3.0 line hardens the scanner and closes the MVP rule set. Targets:
+
+a. **Robust discovery (skip-with-warning).** A single unreadable / non-UTF-8
+   `.nr` file currently aborts the whole scan (security-review finding M1).
+   Make discovery skip such a file with a warning and keep scanning the rest,
+   surfacing the skipped paths in `ScanResult`/stderr.
+b. **`ZK-REPLAY-001`** (project-level replay/uniqueness binding) — the last
+   unimplemented MVP taxonomy rule. Will build on the `ProjectRule` trait to
+   aggregate nullifier/nonce/uniqueness signals across a project's `.nr`
+   files.
+c. **Evaluation corpus.** A curated set of real-world-shaped Noir projects
+   (beyond the unit fixtures) to measure true/false-positive rates per rule
+   and catch regressions in detection quality, not just in code.
+d. **`docs/security-review.md` refresh.** A follow-up review pass over the
+   0.2.0/0.3.0 surface (new `zkguard-config`, SARIF, project rules),
+   re-checking the security boundaries rather than trusting the 0.1.0 audit.
+
+`ZK-REPLAY-001` is the only MVP rule from `docs/rule-taxonomy.md` not yet
+implemented; everything else in the MVP taxonomy is shipped.

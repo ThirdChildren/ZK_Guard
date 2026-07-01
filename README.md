@@ -80,20 +80,29 @@ Default output is plain text to stdout. This is the real output of
   why:        A public input that never reaches an assert/constrain is not actually bound by the proof. A malicious prover can set it to any value, defeating the purpose of making it public in the first place. This is the canonical "under-constrained circuit" bug class in ZK audits.
   fix:        Bind every public input to at least one constraint that a malicious prover cannot satisfy arbitrarily. If a public input is intentionally informational only, document that decision in code comments next to the parameter and accept the finding as a documented exception.
 
+[LOW] Circuit has an entry point but no negative test (ZK-TEST-001)
+  location:   fixtures/noir/vulnerable/noir-public-001/src/main.nr:1
+  confidence: medium
+  evidence:   project declares `fn main` but has no `#[test]` functions at all
+  why:        A circuit with only happy-path tests (or none) can silently accept malformed or malicious witnesses, because nothing in the test suite ever exercises the rejection path the circuit is meant to enforce.
+  fix:        Add at least one `#[test(should_fail)]` (or `should_fail_with = "..."`) test that feeds the circuit a witness it must reject, alongside the happy-path tests. If failing-witness coverage lives in an external harness outside Noir's `#[test]` mechanism, document that next to the entry point and treat this finding as a known exception.
+
 Summary:
   files scanned: 1
-  rules run:     5
+  rules run:     6
   CRITICAL:  0
   HIGH:      1
   MEDIUM:    0
-  LOW:       0
+  LOW:       1
   INFO:      0
-  total:     1
+  total:     2
 ```
 
-`rules run` reflects the current registry size (5), not just the rule that
-produced a finding; every scan runs every registered rule against every
-discovered source file.
+The project-level `ZK-TEST-001` fires here because this fixture ships no
+negative test; the per-file `NOIR-PUBLIC-001` is the rule this fixture
+primarily demonstrates. `rules run` reflects the current registry size (6),
+not just the rules that produced a finding; every scan runs every registered
+rule against every discovered source file.
 
 ### Machine-readable output (CI)
 
@@ -122,6 +131,18 @@ output of
       "evidence": "nullifier = secret (this value is reused directly with no hash at all, which is a stronger structural signal of missing domain separation than an untagged hash)",
       "why_it_matters": "A nullifier without a domain separator can potentially be replayed across different circuits, actions, or deployments that share the same underlying secret/index inputs, weakening the uniqueness property the nullifier is meant to guarantee.",
       "remediation": "Always mix a fixed, action/circuit-specific domain constant into nullifier computation, in addition to (not instead of) the nullifier actually being checked against a set of previously-seen values by the verifier/contract integration."
+    },
+    {
+      "rule_id": "ZK-TEST-001",
+      "title": "Circuit has an entry point but no negative test",
+      "severity": "low",
+      "confidence": "medium",
+      "file": "fixtures/noir/vulnerable/zk-nullifier-001-unhashed/src/main.nr",
+      "line": 1,
+      "column": null,
+      "evidence": "project declares `fn main` but has no `#[test]` functions at all",
+      "why_it_matters": "A circuit with only happy-path tests (or none) can silently accept malformed or malicious witnesses, because nothing in the test suite ever exercises the rejection path the circuit is meant to enforce.",
+      "remediation": "Add at least one `#[test(should_fail)]` (or `should_fail_with = \"...\"`) test that feeds the circuit a witness it must reject, alongside the happy-path tests. If failing-witness coverage lives in an external harness outside Noir's `#[test]` mechanism, document that next to the entry point and treat this finding as a known exception."
     }
   ],
   "files_scanned": 1,
@@ -130,7 +151,8 @@ output of
     "NOIR-CONSTRAINT-001",
     "NOIR-RANGE-001",
     "ZK-HASH-001",
-    "ZK-NULLIFIER-001"
+    "ZK-NULLIFIER-001",
+    "ZK-TEST-001"
   ],
   "suppressed_count": 0
 }

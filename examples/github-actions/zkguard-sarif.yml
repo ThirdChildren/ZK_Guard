@@ -1,0 +1,50 @@
+# Example GitHub Actions workflow: run zk-guard and upload SARIF to
+# GitHub code scanning. Copy into `.github/workflows/` in your Noir
+# repository and point `--path` (here `./circuits`) at your project.
+#
+# This file is an example only; it is NOT an active workflow in the
+# zk-guard repository (it lives under examples/, not .github/workflows/).
+#
+# See docs/sarif.md for the field mapping and details.
+
+name: zk-guard
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+permissions:
+  contents: read
+  security-events: write # required for github/codeql-action/upload-sarif
+
+jobs:
+  zkguard-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      # Replace with a released binary download once zk-guard publishes one.
+      - name: Build zk-guard
+        run: cargo build --release -p zkguard-cli
+
+      # continue-on-error so a finding (exit code 1) still uploads the SARIF;
+      # the "Fail on findings" step below re-applies the gate.
+      - name: Scan Noir sources
+        id: scan
+        continue-on-error: true
+        run: ./target/release/zk-guard scan ./circuits --format sarif --output zkguard.sarif
+
+      - name: Upload SARIF to code scanning
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: zkguard.sarif
+          category: zk-guard
+
+      - name: Fail on findings
+        if: steps.scan.outcome == 'failure'
+        run: exit 1

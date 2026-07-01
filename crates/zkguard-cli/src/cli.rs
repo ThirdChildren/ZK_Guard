@@ -96,6 +96,9 @@ pub enum OutputFormat {
     Json,
     /// GitHub-flavored Markdown.
     Markdown,
+    /// SARIF 2.1.0 log for GitHub code scanning / CI upload. Supported by
+    /// `scan` only (it encodes scan results, not the rule registry).
+    Sarif,
 }
 
 /// Minimum severity that causes `zk-guard scan` to exit nonzero.
@@ -183,6 +186,15 @@ mod tests {
                 assert_eq!(args.path, None);
             }
             other => panic!("expected Fixtures(Validate), got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn parses_scan_with_sarif_format() {
+        let cli = Cli::parse_from(["zk-guard", "scan", "./project", "--format", "sarif"]);
+        match cli.command {
+            Command::Scan(args) => assert_eq!(args.format, OutputFormat::Sarif),
+            other => panic!("expected Scan, got {other:?}"),
         }
     }
 

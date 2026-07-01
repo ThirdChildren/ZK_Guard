@@ -11,7 +11,7 @@ use std::fs;
 use std::io::Write;
 use std::path::Path;
 
-use zkguard_core::ScanResult;
+use zkguard_core::{RuleMetadata, ScanResult};
 
 use crate::cli::{OutputFormat, ScanArgs};
 use crate::exit_code;
@@ -57,16 +57,17 @@ pub fn run(args: &ScanArgs, stdout: &mut impl Write, stderr: &mut impl Write) ->
         }
     }
 
+    // Collected once here (registry order) so the SARIF renderer can emit a
+    // `reportingDescriptor` per rule; the other formats ignore it.
+    let rules_meta: Vec<RuleMetadata> = rules.iter().map(|r| r.metadata().clone()).collect();
+
     let result = ScanResult {
         findings,
         files_scanned: u32::try_from(project.file_count()).unwrap_or(u32::MAX),
-        rules_run: rules
-            .iter()
-            .map(|rule| rule.metadata().rule_id.clone())
-            .collect(),
+        rules_run: rules_meta.iter().map(|m| m.rule_id.clone()).collect(),
     };
 
-    let rendered = match render(&result, args.format) {
+    let rendered = match render(&result, args.format, &rules_meta) {
         Ok(text) => text,
         Err(message) => {
             let _ = writeln!(stderr, "error: failed to render report: {message}");
@@ -100,11 +101,18 @@ pub fn run(args: &ScanArgs, stdout: &mut impl Write, stderr: &mut impl Write) ->
     }
 }
 
-fn render(result: &ScanResult, format: OutputFormat) -> Result<String, String> {
+fn render(
+    result: &ScanResult,
+    format: OutputFormat,
+    rules_meta: &[RuleMetadata],
+) -> Result<String, String> {
     match format {
         OutputFormat::Human => Ok(zkguard_report::human::render(result)),
         OutputFormat::Markdown => Ok(zkguard_report::markdown::render(result)),
         OutputFormat::Json => zkguard_report::json::render(result).map_err(|err| err.to_string()),
+        OutputFormat::Sarif => {
+            zkguard_report::sarif::render(result, rules_meta).map_err(|err| err.to_string())
+        }
     }
 }
 
@@ -212,6 +220,37 @@ mod tests {
         let text = String::from_utf8(out).expect("utf8");
         let parsed: ScanResult = serde_json::from_str(&text).expect("valid json");
         assert_eq!(parsed.findings[0].rule_id, "NOIR-PUBLIC-001");
+
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn sarif_format_emits_parseable_log_with_rule_descriptors() {
+        let root = temp_dir("sarif");
+        fs::write(root.join("Nargo.toml"), "[package]\nname=\"x\"\n").expect("write");
+        fs::write(
+            root.join("main.nr"),
+            "fn main(secret: Field, pub claimed_total: Field) {\n    let computed = secret * 2;\n}\n",
+        )
+        .expect("write");
+
+        let mut out = Vec::new();
+        let mut err = Vec::new();
+        let code = run(&args(root.clone(), OutputFormat::Sarif), &mut out, &mut err);
+
+        assert_eq!(code, exit_code::FINDINGS_PRESENT);
+        let text = String::from_utf8(out).expect("utf8");
+        let v: serde_json::Value = serde_json::from_str(&text).expect("valid sarif json");
+        assert_eq!(v["version"], "2.1.0");
+        // Every registered rule is present as a reportingDescriptor.
+        assert_eq!(
+            v["runs"][0]["tool"]["driver"]["rules"]
+                .as_array()
+                .expect("rules array")
+                .len(),
+            zkguard_rules::registry().len()
+        );
+        assert_eq!(v["runs"][0]["results"][0]["ruleId"], "NOIR-PUBLIC-001");
 
         let _ = fs::remove_dir_all(&root);
     }

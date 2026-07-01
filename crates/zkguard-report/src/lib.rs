@@ -1,4 +1,4 @@
-//! `zkguard-report`: JSON, Markdown, and (later) SARIF report emitters.
+//! `zkguard-report`: JSON, Markdown, SARIF, and human report emitters.
 //!
 //! This crate is the "report" stage of the pipeline in
 //! `docs/architecture.md` (discovery -> parse -> rules -> findings ->
@@ -20,14 +20,15 @@
 //!   GitHub (summary table + one section per finding).
 //! - [`human`]: human-readable terminal emitter (the default `zk-guard
 //!   scan` output with no `--format` flag).
-//!
-//! ## What this crate does **not** yet contain
-//!
-//! A SARIF emitter is an explicit, named future extension (not part of
-//! 0.1.0 scope per `docs/roadmap.md`); it is not scaffolded ahead of need.
+//! - [`sarif`]: SARIF 2.1.0 emitter for GitHub code scanning / CI upload
+//!   (`zk-guard scan --format sarif`; see `docs/sarif.md`). Unlike the other
+//!   emitters it also needs the rule registry metadata, since every rule
+//!   becomes a `reportingDescriptor`.
 
 pub mod human;
 pub mod json;
 pub mod markdown;
+pub mod sarif;
 
 pub use json::JsonReportError;
+pub use sarif::SarifReportError;

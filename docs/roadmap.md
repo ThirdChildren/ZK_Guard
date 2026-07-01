@@ -172,19 +172,25 @@ Maps to Step 10 (`ci-release-engineer`).
 - Any network calls, telemetry, or remote rule updates.
 - Auto-execution of anything inside a scanned repository.
 
-## Planned for 0.2.0
+## 0.2.0 (in progress)
 
-The next release targets, none of which are implemented in 0.1.0:
+The 0.2.0 line makes zk-guard usable in real CI. Targets, in order:
 
-- **SARIF report output** in `zkguard-report`, for GitHub code-scanning /
-  CI integration alongside the existing JSON and Markdown emitters.
-- **`ZK-TEST-001`** (negative/`should_fail` test-coverage check) — the
-  sixth MVP taxonomy rule, specified in `docs/rule-taxonomy.md`.
-- **Configuration file** (per-repo rule enable/disable, severity
-  overrides, path excludes).
-- **Inline finding suppressions** (e.g. an annotation/comment convention to
-  accept a documented finding without failing the scan).
+- [x] **SARIF report output** (`zk-guard scan --format sarif`) in
+      `zkguard-report`, for GitHub code-scanning / CI integration alongside
+      the existing JSON and Markdown emitters. Every rule is emitted as a
+      `reportingDescriptor`; every finding as a `result` with a stable
+      `ruleId`, `level`, `message`, and `physicalLocation`/`region.startLine`.
+      See `docs/sarif.md` and `examples/github-actions/zkguard-sarif.yml`.
+- [ ] **Configuration file** (`zkguard.toml`): per-rule enable/disable,
+      `fail_on` (CLI takes precedence), path handling; plus **suppressions**
+      (inline `// zkguard:ignore RULE_ID reason="..."` and file-based), each
+      requiring a non-empty reason, with `--show-suppressed` and a
+      `suppressed_count` in reports.
+- [ ] **`ZK-TEST-001`** (negative/`should_fail` test-coverage check) — the
+      sixth MVP taxonomy rule, specified in `docs/rule-taxonomy.md`.
 
 `ZK-REPLAY-001` (project-level replay/uniqueness binding) remains specified
 but unscheduled: it needs cross-file aggregation or a `Rule`-trait change
-(see Phase 7), so it is tracked separately from the 0.2.0 items above.
+(see Phase 7), so it is tracked separately from the 0.2.0 items above, and
+is **not** part of 0.2.0.

@@ -35,8 +35,8 @@ documented in `docs/rule-taxonomy.md` and tracked in `docs/roadmap.md`
 Phase 7/9 as post-0.1.0 follow-ups — `zk-guard rules list` will not show
 them until they land.
 
-The CLI, exit codes, and JSON/Markdown report formats described below are
-stable for the current rule set and are not expected to change shape as
+The CLI, exit codes, and JSON/Markdown/SARIF report formats described below
+are stable for the current rule set and are not expected to change shape as
 more rules are added — only the rule registry grows.
 
 ## Installation
@@ -135,6 +135,23 @@ output of
   ]
 }
 ```
+
+### SARIF output (GitHub code scanning)
+
+```bash
+zk-guard scan ./path/to/noir-project --format sarif --output zkguard.sarif
+```
+
+Emits a [SARIF][sarif] 2.1.0 log: every registered rule becomes a
+`reportingDescriptor` and every finding a `result` with a stable `ruleId`,
+`level`, `message`, and `physicalLocation`/`region.startLine`. Upload it with
+`github/codeql-action/upload-sarif` to surface findings in the GitHub
+Security tab and as inline PR annotations. See [`docs/sarif.md`](docs/sarif.md)
+for the full field mapping and a ready-to-copy GitHub Actions workflow
+([`examples/github-actions/zkguard-sarif.yml`](examples/github-actions/zkguard-sarif.yml)).
+SARIF is supported by `scan` only.
+
+[sarif]: https://docs.oasis-open.org/sarif/sarif/v2.1.0/sarif-v2.1.0.html
 
 ### Markdown report (PR comments, CI artifacts)
 
@@ -253,9 +270,10 @@ Concretely, as of `0.1.0`:
   negative sources, not bugs.
 - Noir only. Circom and zkVM guest-code support are explicitly out of
   scope for now (see `docs/roadmap.md`).
-- No SARIF output yet (JSON and Markdown only, by 0.1.0 design); SARIF,
-  a config file, inline suppressions, and `ZK-TEST-001` are the planned
-  `0.2.0` targets (see `docs/roadmap.md`).
+- SARIF 2.1.0 output is available (`--format sarif`, see
+  [`docs/sarif.md`](docs/sarif.md)). A config file, inline suppressions, and
+  `ZK-TEST-001` are the remaining planned `0.2.0` targets (see
+  `docs/roadmap.md`).
 - No cryptographic soundness claims of any kind are made about a scanned
   circuit, regardless of how many (or how few) findings a scan produces.
   A clean scan (exit code `0`) means "the implemented heuristics found

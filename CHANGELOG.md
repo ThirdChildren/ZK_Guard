@@ -7,7 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-_No changes yet._
+### Added
+
+- **SARIF 2.1.0 output** — `zk-guard scan --format sarif` emits a SARIF log
+  for GitHub code scanning / CI upload (`github/codeql-action/upload-sarif`).
+  Every registered rule becomes a `reportingDescriptor`; every finding a
+  `result` with a stable `ruleId`, `level`, `message`, and
+  `physicalLocation`/`region.startLine`, using repository-relative paths.
+  New `zkguard_report::sarif` module (golden + unit tested), `docs/sarif.md`,
+  and an example workflow at `examples/github-actions/zkguard-sarif.yml`.
+  `rules list --format sarif` is a usage error (SARIF encodes scan results,
+  not the registry). JSON, Markdown, and human output are unchanged.
 
 ## [0.1.0] - 2026-07-01
 

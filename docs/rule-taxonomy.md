@@ -747,5 +747,9 @@ not have to invent naming conventions mid-implementation:
 - Parser/AST implementation choices (regex vs. lightweight AST walker):
   deferred to Step 4/7 (`noir-static-analyzer`). This document fixes
   detection *intent*, not implementation technique.
-- SARIF severity/confidence mapping: deferred to whichever step adds SARIF
-  output (explicitly out of scope for 0.1.0 per `docs/roadmap.md`).
+- SARIF output mapping: **now implemented** (0.2.0 line). Severity maps to
+  the SARIF `level` `critical`/`high` -> `error`, `medium` -> `warning`,
+  `low`/`info` -> `note`, and to a numeric `properties.security-severity`
+  (`9.0`/`8.0`/`5.0`/`3.0`/`0.0`); confidence is carried verbatim in
+  `properties.confidence`. Rule `rule_id` becomes the `reportingDescriptor`
+  `id` (stable). See `docs/sarif.md` for the full field mapping.

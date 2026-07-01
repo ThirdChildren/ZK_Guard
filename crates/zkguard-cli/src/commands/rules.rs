@@ -11,8 +11,17 @@ use crate::cli::{OutputFormat, RulesListArgs};
 use crate::exit_code;
 
 pub fn run(args: &RulesListArgs, stdout: &mut impl Write, stderr: &mut impl Write) -> i32 {
-    let rules = zkguard_rules::registry();
-    let metadata: Vec<_> = rules.iter().map(|rule| rule.metadata().clone()).collect();
+    // Per-file rules first, then project-level rules, so `rules list` shows
+    // exactly the set `scan` runs (and in the same order).
+    let metadata: Vec<_> = zkguard_rules::registry()
+        .iter()
+        .map(|rule| rule.metadata().clone())
+        .chain(
+            zkguard_rules::project_registry()
+                .iter()
+                .map(|rule| rule.metadata().clone()),
+        )
+        .collect();
 
     let rendered = match args.format {
         OutputFormat::Human => render_human(&metadata),

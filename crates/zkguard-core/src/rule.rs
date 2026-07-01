@@ -113,6 +113,26 @@ pub trait Rule {
     fn check(&self, source: &SourceView) -> Vec<Finding>;
 }
 
+/// Implemented by rules that must reason over a **whole project** at once,
+/// rather than one file in isolation.
+///
+/// Some checks are inherently cross-file: e.g. "the project has an entry
+/// point but no negative test" (`ZK-TEST-001`) needs to see every `.nr`
+/// source before deciding, because the entry point and the tests may live in
+/// different files. `docs/rule-taxonomy.md` and `docs/architecture.md` flag
+/// this as the expected home for project-level rules; they are run once over
+/// the full source set by the orchestration layer, separately from the
+/// per-file [`Rule`] loop, and their metadata joins the same registry surface
+/// (`rules list`, SARIF `reportingDescriptor`s, `rules_run`).
+pub trait ProjectRule {
+    /// Returns this rule's static metadata (same shape as a per-file rule).
+    fn metadata(&self) -> &RuleMetadata;
+
+    /// Analyzes every source in the project and returns zero or more
+    /// findings. Called once per scan with all discovered `.nr` sources.
+    fn check_project(&self, sources: &[SourceView]) -> Vec<Finding>;
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

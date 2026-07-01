@@ -111,8 +111,11 @@ changes what a rule detects. See `docs/configuration.md`.
    parser depth grows only as specific rules need it (see "Premature
    complexity" below).
 3. **Rules** (`zkguard-rules`): each rule reads the parsed representation
-   and emits zero or more `Finding`s. Rules are independent of each other
-   and registered in one registry keyed by `rule_id`.
+   and emits zero or more `Finding`s. Rules are independent of each other.
+   Per-file rules (`Rule`) run once per source and are in `registry()`;
+   project-level rules (`ProjectRule`, e.g. `ZK-TEST-001`) run once over all
+   sources and are in `project_registry()`. Both share the same metadata
+   surface (`rules list`, SARIF descriptors, `rules_run`).
 4. **Findings** (`zkguard-core`): the `Finding` struct (implemented in Step
    3; see `crates/zkguard-core/src/finding.rs`) is the only artifact that
    crosses from analysis into reporting. Every finding carries rule_id,

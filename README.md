@@ -14,8 +14,8 @@ false-positive classes.
 
 ## Status
 
-Pre-1.0, targeting the `0.1.0` release. **Five rules are implemented
-end-to-end** and registered in `crates/zkguard-rules/src/registry.rs`:
+Pre-1.0 (0.2.0 line). **Six rules are implemented end-to-end** and
+registered in `crates/zkguard-rules/src/registry.rs`:
 
 | Rule ID | Severity | Confidence | What it detects |
 |---|---|---|---|
@@ -24,16 +24,15 @@ end-to-end** and registered in `crates/zkguard-rules/src/registry.rs`:
 | `NOIR-RANGE-001` | medium | low | Array/slice indexing, narrowing integer casts, or unsigned subtraction using a non-constant value with no apparent range-check idiom in the same function. |
 | `ZK-HASH-001` | medium | medium | A hash/commitment call built from an inline array literal with no apparent domain/context tag argument. |
 | `ZK-NULLIFIER-001` | high | low | A nullifier-like binding (by naming convention) that is either unhashed or hashed with no apparent domain tag. |
+| `ZK-TEST-001` | low | medium | **Project-level:** a project that declares `fn main` but has no negative test — no `#[test(should_fail)]`/`should_fail_with` and no `#[test]` named fail/invalid/reject/negative/should_fail. |
 
 See `docs/rule-taxonomy.md` for each rule's full detection strategy,
 false-positive notes, and fixture requirements.
 
-**Two MVP rules from the rule taxonomy are deferred, not implemented:**
-`ZK-REPLAY-001` (project-level replay/uniqueness-binding check) and
-`ZK-TEST-001` (negative/`should_fail` test-coverage check). They are
-documented in `docs/rule-taxonomy.md` and tracked in `docs/roadmap.md`
-Phase 7/9 as post-0.1.0 follow-ups — `zk-guard rules list` will not show
-them until they land.
+**One MVP rule from the rule taxonomy is deferred, not implemented:**
+`ZK-REPLAY-001` (project-level replay/uniqueness-binding check). It is
+documented in `docs/rule-taxonomy.md` and tracked in `docs/roadmap.md`;
+`zk-guard rules list` will not show it until it lands.
 
 The CLI, exit codes, and JSON/Markdown/SARIF report formats described below
 are stable for the current rule set and are not expected to change shape as
@@ -235,6 +234,8 @@ ZK-HASH-001          medium      medium      Hash commitment built from ambiguou
                      Detects calls to hash/commitment functions (callee path containing `hash`, `sha256`, or `pedersen`) built from an inline array literal with no apparent domain/context tag argument, downgrading confidence when no corroborating same-arity call exists elsewhere in the file.
 ZK-NULLIFIER-001     high        low         Nullifier-like value generated without a visible domain separator
                      Detects `let`/function bindings whose name matches a nullifier naming convention (nullifier, null_hash, spent_tag) where the computed value is either not the output of a hash at all, or is a hash call with no apparent domain/context tag argument.
+ZK-TEST-001          low         medium      Circuit has an entry point but no negative test
+                     Project-level: flags a Noir project that declares `fn main` but has no negative test — no `#[test(should_fail)]`/`should_fail_with` attribute and no `#[test]` whose name contains fail/invalid/reject/negative/should_fail. Never runs nargo; a purely textual check over discovered `.nr` sources.
 ```
 
 ### Validate the fixture tree
@@ -293,25 +294,25 @@ not a guarantee about real-world impact. See `docs/rule-taxonomy.md`'s
 "Disclaimer" and each rule's "False-positive notes" for the specific known
 gaps behind this general statement.
 
-Concretely, as of `0.1.0`:
+Concretely:
 
-- **5 of 7** MVP rules from the rule taxonomy are implemented
+- **6 of 7** MVP rules from the rule taxonomy are implemented
   (`NOIR-PUBLIC-001`, `NOIR-CONSTRAINT-001`, `NOIR-RANGE-001`,
-  `ZK-HASH-001`, `ZK-NULLIFIER-001`). `ZK-REPLAY-001` and `ZK-TEST-001` are
-  specified in `docs/rule-taxonomy.md` but not yet implemented — they do
+  `ZK-HASH-001`, `ZK-NULLIFIER-001`, `ZK-TEST-001`). `ZK-REPLAY-001` is
+  specified in `docs/rule-taxonomy.md` but not yet implemented — it does
   not appear in `zk-guard rules list` and will never be flagged.
-- Detection is text/shape-level heuristics over single functions in most
-  rules, not full dataflow or cross-file analysis. Custom assertion/range-
-  check helper functions, cross-function flow, and naming-convention-only
-  detections (`ZK-NULLIFIER-001`) are documented false-positive/false-
+- Detection is text/shape-level heuristics, not full dataflow or a parsed
+  AST. Most rules are single-function; `ZK-TEST-001` is project-level (it
+  aggregates `#[test]` attributes across files). Custom assertion/range-
+  check helpers, cross-function flow, naming-convention detections
+  (`ZK-NULLIFIER-001`), and test coverage via an external harness outside
+  Noir's `#[test]` (`ZK-TEST-001`) are documented false-positive/false-
   negative sources, not bugs.
 - Noir only. Circom and zkVM guest-code support are explicitly out of
   scope for now (see `docs/roadmap.md`).
 - SARIF 2.1.0 output (`--format sarif`, see [`docs/sarif.md`](docs/sarif.md))
   and `zkguard.toml` config + suppressions (see
-  [`docs/configuration.md`](docs/configuration.md)) are available. The
-  `ZK-TEST-001` rule is the remaining planned `0.2.0` target (see
-  `docs/roadmap.md`).
+  [`docs/configuration.md`](docs/configuration.md)) are available.
 - No cryptographic soundness claims of any kind are made about a scanned
   circuit, regardless of how many (or how few) findings a scan produces.
   A clean scan (exit code `0`) means "the implemented heuristics found
@@ -389,8 +390,8 @@ step:
 - A single unreadable/non-UTF-8 `.nr` file currently aborts an entire scan
   instead of being skipped with a warning. Logic fix, out of scope for
   CI/docs work.
-- `ZK-REPLAY-001` and `ZK-TEST-001` are specified but not implemented.
-- No SARIF output.
+- `ZK-REPLAY-001` is specified but not implemented (`ZK-TEST-001` and SARIF
+  landed in the 0.2.0 line).
 - No automated release/publish workflow — building a release binary is a
   manual `cargo build --release -p zkguard-cli` step; there is no package
   upload, crates.io publish, or tagged-artifact automation, and none should

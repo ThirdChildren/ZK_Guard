@@ -577,36 +577,44 @@ finding can be triaged as a documented exception.
 **Vulnerability class:** weak test harness / missing negative tests.
 
 **Default severity:** `low`
-**Default confidence:** `high`
+**Default confidence:** `medium`
 
-**Detection strategy:**
-1. Locate Noir test functions: items annotated `#[test]` anywhere in the
-   project's `.nr` files (Noir's test attribute).
-2. For each test function, inspect its body for a "should fail" signal:
-   - the `#[test(should_fail)]` / `#[test(should_fail_with = "...")]`
-     attribute form, or
-   - a body that calls the circuit's entry point with inputs and expects a
-     `Result`/error path to be returned and matched against an error case
-     (project-specific; only recognized if it follows Noir's standard
-     `should_fail` attribute, to keep this rule's detection unambiguous).
-3. If a project has **zero** `#[test]` functions at all, emit a finding
-   (no test harness at all is a stronger, unambiguous signal).
-4. If a project has one or more `#[test]` functions but **none** use
-   `should_fail`/`should_fail_with`, emit a finding (tests exist but only
-   exercise the happy path).
-5. This is a pure presence/absence check over attribute syntax — no
-   semantic judgment about whether the negative tests are *good* negative
-   tests is attempted in the MVP.
+**Scope:** project-level (`zkguard_core::ProjectRule`) — it reasons over all
+of a project's `.nr` sources at once, since the entry point and its tests may
+live in different files.
+
+**Detection strategy (as implemented):**
+1. **Gate on an entry point.** The project must declare `fn main`
+   (identifier-exact, ignoring `fn main_helper` and commented-out code). A
+   library with no `fn main` is never flagged — there is no circuit to test.
+2. Locate Noir test functions: items annotated `#[test]` in the project's
+   `.nr` files (comments are stripped first, so prose mentioning
+   `#[test(should_fail)]` is not counted).
+3. A test counts as a **negative test** if either:
+   - its attribute uses `#[test(should_fail)]` / `#[test(should_fail_with =
+     "...")]` (Noir's standard failing-test form), or
+   - its function name contains one of `fail`, `invalid`, `reject`,
+     `negative`, `should_fail` (case-insensitive).
+4. If the project has a `fn main` but **zero** negative tests — whether it
+   has no `#[test]` at all, or only happy-path tests — emit one finding,
+   anchored at the entry-point source, line 1.
+5. Pure presence/absence over attribute syntax and test names — no semantic
+   judgment about whether the negative tests are *good* negative tests.
 
 **False-positive notes:**
-- This is the most reliable rule in the MVP set because `#[test]` and
-  `should_fail` are fixed Noir syntax, not a naming convention — default
-  confidence is `high`.
-- A project that tests failing witnesses through an external harness
-  outside Noir's `#[test]` mechanism (e.g. a separate Rust integration
-  test driving `nargo prove` and asserting failure) will be flagged as a
-  false positive by this rule; this is a known, documented limitation, not
-  a bug — the rule only inspects in-tree `.nr` test attributes.
+- Confidence is `medium`: the `should_fail` attribute check is exact Noir
+  syntax, but the name-based negative match and the coarse `fn main` gate are
+  heuristics (the attribute-only design would be `high`; the broader
+  name-based match trades some precision for recall).
+- A project that tests failing witnesses through an external harness outside
+  Noir's `#[test]` mechanism (e.g. a separate Rust integration test driving
+  `nargo` and asserting failure) is flagged as a false positive — the rule
+  only inspects in-tree `.nr` test attributes/names.
+- A genuine negative test whose name lacks the keywords **and** whose
+  attribute lacks `should_fail` is not recognized, so a project may be
+  flagged despite having one. Prefer the `#[test(should_fail)]` attribute.
+- Multi-circuit projects are judged in aggregate: one negative test anywhere
+  clears the whole project.
 
 **Vulnerable pattern:**
 ```text

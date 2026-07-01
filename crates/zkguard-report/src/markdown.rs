@@ -28,6 +28,7 @@ pub fn render(result: &ScanResult) -> String {
     let sorted = result.sorted_by_severity();
     if sorted.is_empty() {
         out.push_str("No findings reached the configured failure threshold.\n");
+        render_skipped(&mut out, result);
         render_suppressed(&mut out, result);
         return out;
     }
@@ -72,8 +73,39 @@ pub fn render(result: &ScanResult) -> String {
         out.push_str("\n\n");
     }
 
+    render_skipped(&mut out, result);
     render_suppressed(&mut out, result);
     out
+}
+
+/// Renders a "## Skipped files" table, only when discovery skipped something
+/// (unreadable/non-UTF-8). These are warnings, not findings.
+fn render_skipped(out: &mut String, result: &ScanResult) {
+    if result.skipped.is_empty() {
+        return;
+    }
+    out.push_str("## Skipped files\n\n");
+    out.push_str("Discovery could not read these files; they were skipped ");
+    out.push_str("(the scan is partial). This is a warning, not a finding.\n\n");
+    out.push_str("| File | Kind | Reason |\n");
+    out.push_str("|---|---|---|\n");
+    for skip in &result.skipped {
+        out.push_str(&format!(
+            "| `{}` | {} | {} |\n",
+            skip.path.display(),
+            skip_kind_label(skip.kind),
+            skip.reason,
+        ));
+    }
+    out.push('\n');
+}
+
+fn skip_kind_label(kind: zkguard_core::SkipKind) -> &'static str {
+    match kind {
+        zkguard_core::SkipKind::NonUtf8 => "non-utf8",
+        zkguard_core::SkipKind::Unreadable => "unreadable",
+        zkguard_core::SkipKind::OtherIo => "io-error",
+    }
 }
 
 /// Renders a "## Suppressed findings" table, only when the caller populated
@@ -133,6 +165,12 @@ fn render_summary(out: &mut String, result: &ScanResult) {
     ));
     if result.suppressed_count > 0 {
         out.push_str(&format!("- Suppressed: **{}**\n", result.suppressed_count));
+    }
+    if !result.skipped.is_empty() {
+        out.push_str(&format!(
+            "- Skipped (unreadable/non-UTF-8): **{}**\n",
+            result.skipped.len()
+        ));
     }
     out.push('\n');
 

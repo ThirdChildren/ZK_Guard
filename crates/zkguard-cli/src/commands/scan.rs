@@ -103,6 +103,17 @@ pub fn run(args: &ScanArgs, stdout: &mut impl Write, stderr: &mut impl Write) ->
     }
     let suppressed_count = u32::try_from(outcome.suppressed.len()).unwrap_or(u32::MAX);
 
+    // Partial-scan warnings: files discovery could not read. Surfaced on
+    // stderr and carried in the result; they never affect the exit code.
+    for skip in &project.skipped {
+        let _ = writeln!(
+            stderr,
+            "warning: skipped {}: {}",
+            skip.path.display(),
+            skip.reason
+        );
+    }
+
     let result = ScanResult {
         findings: outcome.active,
         files_scanned: u32::try_from(project.file_count()).unwrap_or(u32::MAX),
@@ -113,6 +124,7 @@ pub fn run(args: &ScanArgs, stdout: &mut impl Write, stderr: &mut impl Write) ->
         } else {
             Vec::new()
         },
+        skipped: project.skipped,
     };
 
     let fail_on = config.effective_fail_on(args.fail_on.map(|f| f.to_severity()));
@@ -477,6 +489,53 @@ mod tests {
         let mut err2 = Vec::new();
         let code2 = run(&scan_args, &mut out2, &mut err2);
         assert_eq!(code2, exit_code::FINDINGS_PRESENT, "CLI fail_on wins");
+
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn non_utf8_file_is_skipped_scan_continues_and_warns() {
+        // Clean valid project (has a negative test, so no ZK-TEST-001 either)
+        // plus a non-UTF-8 `.nr` file that must not abort the scan.
+        let root = temp_dir("non-utf8-scan");
+        fs::write(root.join("Nargo.toml"), "[package]\nname=\"x\"\n").expect("write");
+        fs::write(
+            root.join("main.nr"),
+            "fn main(x: Field) { assert(x == x); }\n#[test(should_fail)]\nfn t_reject() {}\n",
+        )
+        .expect("write");
+        fs::write(root.join("broken.nr"), [0x66, 0xff, 0xfe, 0x00]).expect("write broken");
+
+        // JSON: exit is driven by findings (none here) not the warning; the
+        // skipped file appears as an additive `skipped` array.
+        let mut out = Vec::new();
+        let mut err = Vec::new();
+        let code = run(&args(root.clone(), OutputFormat::Json), &mut out, &mut err);
+
+        assert_eq!(
+            code,
+            exit_code::SUCCESS,
+            "a skipped file must not fail the scan"
+        );
+        let parsed: ScanResult =
+            serde_json::from_str(&String::from_utf8(out).expect("utf8")).expect("json");
+        assert!(parsed.findings.is_empty());
+        assert_eq!(parsed.skipped.len(), 1);
+        assert!(parsed.skipped[0].path.ends_with("broken.nr"));
+        // A warning was emitted on stderr.
+        assert!(String::from_utf8(err).expect("utf8").contains("skipped"));
+
+        // Human: the skipped file shows up as a warning section.
+        let mut out2 = Vec::new();
+        let mut err2 = Vec::new();
+        run(
+            &args(root.clone(), OutputFormat::Human),
+            &mut out2,
+            &mut err2,
+        );
+        let text = String::from_utf8(out2).expect("utf8");
+        assert!(text.contains("Warnings (skipped files):"));
+        assert!(text.contains("broken.nr"));
 
         let _ = fs::remove_dir_all(&root);
     }

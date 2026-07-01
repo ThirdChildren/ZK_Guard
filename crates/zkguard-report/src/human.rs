@@ -48,10 +48,37 @@ pub fn render(result: &ScanResult) -> String {
     }
 
     out.push_str(&render_summary(result));
+    if !result.skipped.is_empty() {
+        out.push_str(&render_skipped(result));
+    }
     if !result.suppressed.is_empty() {
         out.push_str(&render_suppressed(result));
     }
     out
+}
+
+/// Lists files discovery skipped (unreadable/non-UTF-8). These are warnings,
+/// not findings: they never affect the exit code.
+fn render_skipped(result: &ScanResult) -> String {
+    let mut out = String::new();
+    out.push_str("\nWarnings (skipped files):\n");
+    for skip in &result.skipped {
+        out.push_str(&format!(
+            "  {} [{}]: {}\n",
+            skip.path.display(),
+            skip_kind_label(skip.kind),
+            skip.reason,
+        ));
+    }
+    out
+}
+
+fn skip_kind_label(kind: zkguard_core::SkipKind) -> &'static str {
+    match kind {
+        zkguard_core::SkipKind::NonUtf8 => "non-utf8",
+        zkguard_core::SkipKind::Unreadable => "unreadable",
+        zkguard_core::SkipKind::OtherIo => "io-error",
+    }
 }
 
 /// Lists suppressed findings (only when the caller asked for them via
@@ -113,6 +140,9 @@ fn render_summary(result: &ScanResult) -> String {
     out.push_str(&format!("  total:     {}\n", result.total_findings()));
     if result.suppressed_count > 0 {
         out.push_str(&format!("  suppressed: {}\n", result.suppressed_count));
+    }
+    if !result.skipped.is_empty() {
+        out.push_str(&format!("  skipped:   {}\n", result.skipped.len()));
     }
     out
 }

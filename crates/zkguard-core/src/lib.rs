@@ -36,6 +36,7 @@ mod finding;
 mod rule;
 mod scan;
 mod severity;
+mod skipped;
 mod suppression;
 
 pub use confidence::Confidence;
@@ -43,4 +44,5 @@ pub use finding::Finding;
 pub use rule::{ProjectRule, Rule, RuleMetadata, SourceView};
 pub use scan::ScanResult;
 pub use severity::Severity;
+pub use skipped::{SkipKind, SkippedFile};
 pub use suppression::{SuppressedFinding, SuppressionKind};

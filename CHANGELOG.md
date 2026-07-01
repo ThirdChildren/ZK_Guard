@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Robust discovery (security-review M1).** A single unreadable or non-UTF-8
+  `.nr` file no longer aborts the entire scan. Discovery now skips such a file
+  and records it as a `zkguard_core::SkippedFile` (`path`, `reason`, and
+  `kind`: `non_utf8` / `unreadable` / `other_io`) in `NoirProject::skipped`,
+  continuing to scan the rest of the tree. The CLI surfaces skipped files as
+  warnings on stderr and in the report: a new additive `skipped` array in JSON
+  (omitted when empty), a "Warnings (skipped files)" section and summary count
+  in human output, and a "Skipped files" table in Markdown. SARIF is
+  unchanged (skips are not security results). Skipped files never affect the
+  exit code, which still depends only on findings. Rule semantics are
+  unchanged, and the scanner still executes nothing, follows no symlinks, and
+  makes no network calls.
+
 ### Changed
 
 - **Docs cleanup for the 0.3.0 line.** `docs/architecture.md`,

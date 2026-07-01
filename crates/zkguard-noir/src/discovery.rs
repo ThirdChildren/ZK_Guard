@@ -19,7 +19,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use zkguard_core::SourceView;
+use zkguard_core::{SkipKind, SkippedFile, SourceView};
 
 /// File extension Noir source files use.
 const NOIR_SOURCE_EXTENSION: &str = "nr";
@@ -83,10 +83,15 @@ pub struct NoirProject {
     /// Every `.nr` source file found under the scan root, as a
     /// [`SourceView`] ready to feed into [`zkguard_core::Rule::check`].
     pub sources: Vec<SourceView>,
+    /// `.nr` files that were located but could not be read (unreadable or
+    /// non-UTF-8). Discovery skips them and keeps going rather than aborting
+    /// the whole scan (security-review finding M1); the caller surfaces them
+    /// as warnings. Empty on a clean scan.
+    pub skipped: Vec<SkippedFile>,
 }
 
 impl NoirProject {
-    /// Number of `.nr` source files discovered.
+    /// Number of `.nr` source files successfully read.
     #[must_use]
     pub fn file_count(&self) -> usize {
         self.sources.len()
@@ -139,31 +144,37 @@ pub fn discover(root: impl AsRef<Path>) -> Result<NoirProject, DiscoveryError> {
         return Ok(NoirProject {
             manifest_path: None,
             sources: Vec::new(),
+            skipped: Vec::new(),
         });
     }
 
     if root_meta.is_file() {
         let mut sources = Vec::new();
+        let mut skipped = Vec::new();
         if is_noir_source(root) {
-            sources.push(read_source(root)?);
+            read_noir_source(root, &mut sources, &mut skipped);
         }
         return Ok(NoirProject {
             manifest_path: None,
             sources,
+            skipped,
         });
     }
 
     let mut sources = Vec::new();
+    let mut skipped = Vec::new();
     let mut manifest_path = None;
-    walk_dir(root, &mut sources, &mut manifest_path)?;
+    walk_dir(root, &mut sources, &mut skipped, &mut manifest_path)?;
 
     // Deterministic output: callers (including tests) should not depend on
     // OS-specific directory iteration order.
     sources.sort_by(|a, b| a.path.cmp(&b.path));
+    skipped.sort_by(|a, b| a.path.cmp(&b.path));
 
     Ok(NoirProject {
         manifest_path,
         sources,
+        skipped,
     })
 }
 
@@ -179,6 +190,7 @@ pub fn discover(root: impl AsRef<Path>) -> Result<NoirProject, DiscoveryError> {
 fn walk_dir(
     dir: &Path,
     sources: &mut Vec<SourceView>,
+    skipped: &mut Vec<SkippedFile>,
     manifest_path: &mut Option<PathBuf>,
 ) -> Result<(), DiscoveryError> {
     let entries = fs::read_dir(dir).map_err(|source| DiscoveryError::Io {
@@ -207,13 +219,13 @@ fn walk_dir(
         }
 
         if meta.is_dir() {
-            walk_dir(&path, sources, manifest_path)?;
+            walk_dir(&path, sources, skipped, manifest_path)?;
         } else if meta.is_file() {
             if is_nargo_manifest(&path) && manifest_path.is_none() {
                 *manifest_path = Some(path.clone());
             }
             if is_noir_source(&path) {
-                sources.push(read_source(&path)?);
+                read_noir_source(&path, sources, skipped);
             }
         }
     }
@@ -233,12 +245,29 @@ fn is_nargo_manifest(path: &Path) -> bool {
         .is_some_and(|name| name == NARGO_MANIFEST_FILENAME)
 }
 
-fn read_source(path: &Path) -> Result<SourceView, DiscoveryError> {
-    let contents = fs::read_to_string(path).map_err(|source| DiscoveryError::Io {
-        path: path.to_path_buf(),
-        source,
-    })?;
-    Ok(SourceView::new(path.to_path_buf(), contents))
+/// Reads one `.nr` file into `sources`, or records it in `skipped` if it
+/// cannot be read (unreadable) or is not valid UTF-8. A per-file read failure
+/// never aborts the scan (security-review finding M1): a single hostile or
+/// malformed file must not deny scanning the rest of the project.
+fn read_noir_source(path: &Path, sources: &mut Vec<SourceView>, skipped: &mut Vec<SkippedFile>) {
+    match fs::read_to_string(path) {
+        Ok(contents) => sources.push(SourceView::new(path.to_path_buf(), contents)),
+        Err(err) => skipped.push(SkippedFile::new(
+            path.to_path_buf(),
+            err.to_string(),
+            classify_read_error(&err),
+        )),
+    }
+}
+
+/// Maps a `read_to_string` failure to a coarse [`SkipKind`]. A non-UTF-8 file
+/// surfaces as `InvalidData` from `read_to_string`.
+fn classify_read_error(err: &std::io::Error) -> SkipKind {
+    match err.kind() {
+        std::io::ErrorKind::InvalidData => SkipKind::NonUtf8,
+        std::io::ErrorKind::PermissionDenied | std::io::ErrorKind::NotFound => SkipKind::Unreadable,
+        _ => SkipKind::OtherIo,
+    }
 }
 
 #[cfg(test)]
@@ -320,6 +349,43 @@ mod tests {
         let project = discover(&file).expect("discover");
         assert_eq!(project.file_count(), 0);
 
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn non_utf8_file_is_skipped_not_fatal() {
+        let root = temp_dir("non-utf8");
+        fs::write(root.join("Nargo.toml"), "[package]\nname = \"demo\"\n").expect("write");
+        fs::create_dir_all(root.join("src")).expect("mkdir src");
+        // Valid source alongside a non-UTF-8 `.nr` file.
+        fs::write(root.join("src/main.nr"), "fn main() {}\n").expect("write main");
+        fs::write(root.join("src/broken.nr"), [0x66, 0x6e, 0xff, 0xfe, 0x00])
+            .expect("write broken");
+
+        let project = discover(&root).expect("discovery must not fail on a bad file");
+
+        // The valid file is still scanned.
+        assert_eq!(project.file_count(), 1);
+        assert!(project
+            .sources
+            .iter()
+            .any(|s| s.path == root.join("src/main.nr")));
+
+        // The bad file is recorded as skipped, classified as non-UTF-8.
+        assert_eq!(project.skipped.len(), 1);
+        assert_eq!(project.skipped[0].path, root.join("src/broken.nr"));
+        assert_eq!(project.skipped[0].kind, SkipKind::NonUtf8);
+        assert!(!project.skipped[0].reason.is_empty());
+
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn clean_project_has_no_skipped_files() {
+        let root = temp_dir("clean-no-skips");
+        fs::write(root.join("main.nr"), "fn main() {}\n").expect("write");
+        let project = discover(&root).expect("discover");
+        assert!(project.skipped.is_empty());
         let _ = fs::remove_dir_all(&root);
     }
 

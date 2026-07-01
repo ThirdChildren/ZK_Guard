@@ -33,17 +33,20 @@ vulnerabilities.
 
 ## Findings
 
-### M1 (medium) — one unreadable `.nr` file aborts the whole scan
-- **Location:** `crates/zkguard-noir/src/discovery.rs:236-242` (`read_source`),
-  propagated via `walk_dir` (`:216`) as a hard `Err` out of `discover()`.
-- **Impact:** a hostile or malformed target repo can deny a full scan with a
+### M1 (medium) — one unreadable `.nr` file aborts the whole scan — **FIXED (v0.3.0 line)**
+- **Location:** was `crates/zkguard-noir/src/discovery.rs` `read_source`,
+  which propagated a per-file read error as a hard `Err` out of `discover()`.
+- **Impact:** a hostile or malformed target repo could deny a full scan with a
   single non-UTF8/unreadable file, even when the rest of the tree is valid
   Noir. Availability-relevant for a tool meant to scan imperfect repos.
-- **Fix:** in `walk_dir`, treat a per-file `read_to_string` failure as
-  skip-with-warning (collect a `skipped`/`partial_errors` list surfaced in
-  `ScanResult` or stderr) instead of failing `discover()`. Changes the
-  `DiscoveryError`/`NoirProject` contract → more than a trivial fix.
-- **Owner:** `noir-static-analyzer`. Status: reported, not fixed.
+- **Fix (implemented):** discovery now reads each `.nr` file with
+  `read_noir_source`, which on failure records a `zkguard_core::SkippedFile`
+  (`path`, `reason`, `kind` = `non_utf8`/`unreadable`/`other_io`) in
+  `NoirProject::skipped` and keeps scanning the rest of the tree. The CLI
+  surfaces skipped files as warnings on stderr and in `ScanResult::skipped`
+  (human/Markdown/JSON, additive; not SARIF); they never affect the exit
+  code. Directory-level read errors remain hard errors (out of M1 scope).
+- **Owner:** `noir-static-analyzer`. Status: **fixed.**
 
 ### M2 (medium) — stale README "Status"/"Limitations"
 - **Location:** `README.md:17-21`, `README.md:193-194` claim a single rule is
@@ -101,9 +104,10 @@ project-level `ZK-TEST-001` rule; a full re-review of that surface is a
   six-rule registry (`NOIR-PUBLIC-001`, `NOIR-CONSTRAINT-001`,
   `NOIR-RANGE-001`, `ZK-HASH-001`, `ZK-NULLIFIER-001`, `ZK-TEST-001`) and
   the current formats/config; `rules list` remains the source of truth.
-- **M1 (one unreadable/non-UTF-8 `.nr` aborts the whole scan) — STILL
-  OPEN.** Unchanged in 0.2.0. Scheduled as the "robust discovery
-  (skip-with-warning)" item for 0.3.0.
+- **M1 (one unreadable/non-UTF-8 `.nr` aborts the whole scan) — FIXED
+  (0.3.0 line).** Discovery now skips the bad file with a warning
+  (`NoirProject::skipped` / `ScanResult::skipped`) and keeps scanning; the
+  exit code still depends only on findings. See the M1 finding above.
 - **ZK-TEST-001 — now IMPLEMENTED** (0.2.0), as a project-level rule via the
   `zkguard_core::ProjectRule` trait. `ZK-REPLAY-001` is now the *only*
   unimplemented MVP rule (recommended action #3 above is partially done).

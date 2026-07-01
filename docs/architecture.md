@@ -107,6 +107,13 @@ changes what a rule detects. See `docs/configuration.md`.
 1. **Discovery** (`zkguard-noir`): given a filesystem path, locate Noir
    projects (`Nargo.toml`, `src/`) using safe traversal — no following of
    symlink loops, no execution of anything found in the target repository.
+   Discovery is **partial-tolerant**: a `.nr` file it cannot read
+   (unreadable, or not valid UTF-8) is recorded as a
+   `zkguard_core::SkippedFile` in `NoirProject::skipped` and skipped, rather
+   than aborting the whole scan (security-review finding M1). These are
+   **warnings, not findings**: they flow through `ScanResult::skipped` to the
+   human/Markdown/JSON reports (additive; not SARIF) and never affect the
+   exit code. Directory-level read errors are still hard errors.
 2. **Parse** (`zkguard-noir`): build a source representation of each Noir
    project sufficient for rule matching (e.g. public input declarations,
    constraint/assert expressions, hash and nullifier call sites). This

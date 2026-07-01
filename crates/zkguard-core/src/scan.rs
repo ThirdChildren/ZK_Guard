@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::finding::Finding;
 use crate::severity::Severity;
+use crate::skipped::SkippedFile;
 use crate::suppression::SuppressedFinding;
 
 /// All findings from one scan run, plus minimal run metadata.
@@ -39,6 +40,12 @@ pub struct ScanResult {
     /// regardless of whether this list is populated.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub suppressed: Vec<SuppressedFinding>,
+    /// Files that discovery located but could not read (unreadable or
+    /// non-UTF-8), so the scan is partial rather than aborted. A warning, not
+    /// a finding: never affects the exit code. Omitted from JSON when empty,
+    /// and `#[serde(default)]` keeps older JSON parseable.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub skipped: Vec<SkippedFile>,
 }
 
 impl ScanResult {
@@ -179,10 +186,12 @@ mod tests {
         let parsed: ScanResult = serde_json::from_str(legacy).expect("deserialize legacy");
         assert_eq!(parsed.suppressed_count, 0);
         assert!(parsed.suppressed.is_empty());
+        assert!(parsed.skipped.is_empty());
 
-        // An empty `suppressed` list is omitted from serialization.
+        // Empty `suppressed`/`skipped` lists are omitted from serialization.
         let json = serde_json::to_string(&ScanResult::new()).expect("serialize");
         assert!(!json.contains("\"suppressed\""));
+        assert!(!json.contains("\"skipped\""));
         assert!(json.contains("\"suppressed_count\":0"));
     }
 }

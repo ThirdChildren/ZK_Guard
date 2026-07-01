@@ -1,10 +1,15 @@
 # zk-guard rule taxonomy
 
-Status: this document defines the seven MVP rules from CLAUDE.md's "MVP
-rule families" section. It is a specification for Step 4/7
-(`noir-static-analyzer`) and Step 5 (`fixtures-test-engineer`) to implement
-against. **No rule logic, parser, or fixture exists yet** — this document
-only fixes intent so those steps don't have to re-derive it.
+Status (0.2.0 line): this document defines the seven MVP rules from
+CLAUDE.md's "MVP rule families" section. **Six of the seven are implemented**
+end-to-end (rule logic, fixtures, and tests): `NOIR-PUBLIC-001`,
+`NOIR-CONSTRAINT-001`, `NOIR-RANGE-001`, `ZK-HASH-001`, `ZK-NULLIFIER-001`,
+and the project-level `ZK-TEST-001`. **`ZK-REPLAY-001` is the only rule that
+is still specified-only** (documented here but not implemented; see its
+section and `docs/roadmap.md`'s 0.3.0 plan). Each rule section below is the
+authoritative spec for its detection intent; where the implementation
+knowingly diverges or is more/less precise, that is noted in the rule's
+"Detection strategy" and "False-positive notes".
 
 ## Scope
 
@@ -489,6 +494,11 @@ by the verifier/contract integration (see `ZK-REPLAY-001`).
 
 ## ZK-REPLAY-001 — Proof/action pattern appears to lack nonce, nullifier, or uniqueness binding
 
+> **Status: specified-only, not implemented.** This is the sole MVP rule
+> without an implementation; it is planned for 0.3.0 (see `docs/roadmap.md`)
+> and will use the `ProjectRule` mechanism. The section below is its intended
+> spec, not shipped behavior.
+
 **Vulnerability class:** replay-prone circuit/integration pattern.
 
 **Default severity:** `medium`
@@ -697,25 +707,25 @@ Each of these is captured in the rule's own "False-positive notes" above;
 this summary exists so `security-reviewer` (Step 8) has one place to check
 that no false-positive class was silently dropped between rule sections.
 
-## Required fixtures (concrete deferred work for Step 5)
+## Required fixtures
 
 Per CLAUDE.md principle 9 ("every new rule must ship with at least one
 vulnerable fixture and one safe fixture"), the fixture set required to
-exercise this taxonomy is:
+exercise this taxonomy is below. All rows are shipped **except
+`ZK-REPLAY-001`**, whose fixtures land with the rule (0.3.0):
 
-| Rule | Vulnerable fixture(s) | Safe fixture(s) |
-|---|---|---|
-| NOIR-PUBLIC-001 | 1 | 1 |
-| NOIR-CONSTRAINT-001 | 1 | 1 (plus inline-no-binding variant) |
-| NOIR-RANGE-001 | 2 (index, cast) | 2 (matching safe variants) + loop-counter non-finding case |
-| ZK-HASH-001 | 1 (two colliding commitment shapes) | 1 |
-| ZK-NULLIFIER-001 | 2 (unhashed reuse, hash without tag) | 1 |
-| ZK-REPLAY-001 | 1 (project-level) | 1 (project-level) |
-| ZK-TEST-001 | 2 (no tests, happy-path-only tests) | 1 |
+| Rule | Vulnerable fixture(s) | Safe fixture(s) | Status |
+|---|---|---|---|
+| NOIR-PUBLIC-001 | 1 | 1 | shipped |
+| NOIR-CONSTRAINT-001 | 1 | 1 (plus inline-no-binding variant) | shipped |
+| NOIR-RANGE-001 | 2 (index, cast) | 2 (matching safe variants) + loop-counter non-finding case | shipped |
+| ZK-HASH-001 | 1 (two colliding commitment shapes) | 1 | shipped |
+| ZK-NULLIFIER-001 | 2 (unhashed reuse, hash without tag) | 1 | shipped |
+| ZK-REPLAY-001 | 1 (project-level) | 1 (project-level) | planned (0.3.0) |
+| ZK-TEST-001 | 2 (no tests, happy-path-only tests) | 1 | shipped |
 
-This table is the acceptance checklist `fixtures-test-engineer` should use
-in Step 5; it does not replace per-rule "Fixture requirements" sections
-above, which specify file shape, not just count.
+This table does not replace per-rule "Fixture requirements" sections above,
+which specify file shape, not just count.
 
 ## Suggested test names
 

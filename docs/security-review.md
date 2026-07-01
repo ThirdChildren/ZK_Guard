@@ -89,3 +89,26 @@ documented (roadmap defers them; CLAUDE.md requires only 5 for 0.1.0).
    trait change).
 4. Optional: document the absence of size/depth bounds as an accepted v1
    limitation (L1).
+
+## Post-v0.2.0 status
+
+This is a status delta, not a fresh audit. The 0.2.0 line added the
+`zkguard-config` crate (config + suppressions), SARIF output, and the
+project-level `ZK-TEST-001` rule; a full re-review of that surface is a
+0.3.0 task (see `docs/roadmap.md`). Against the findings above:
+
+- **M2 (stale README) — RESOLVED.** The README now documents the real
+  six-rule registry (`NOIR-PUBLIC-001`, `NOIR-CONSTRAINT-001`,
+  `NOIR-RANGE-001`, `ZK-HASH-001`, `ZK-NULLIFIER-001`, `ZK-TEST-001`) and
+  the current formats/config; `rules list` remains the source of truth.
+- **M1 (one unreadable/non-UTF-8 `.nr` aborts the whole scan) — STILL
+  OPEN.** Unchanged in 0.2.0. Scheduled as the "robust discovery
+  (skip-with-warning)" item for 0.3.0.
+- **ZK-TEST-001 — now IMPLEMENTED** (0.2.0), as a project-level rule via the
+  `zkguard_core::ProjectRule` trait. `ZK-REPLAY-001` is now the *only*
+  unimplemented MVP rule (recommended action #3 above is partially done).
+- **New surface not yet audited:** `zkguard-config` (TOML parsing,
+  suppression matching, inline-directive scanning) and the SARIF emitter.
+  No new dangerous behavior is expected (no execution, no network; config is
+  read-only TOML), but these warrant a dedicated pass in the 0.3.0 review
+  refresh. L1 (no size/depth bounds) remains noted, not addressed.

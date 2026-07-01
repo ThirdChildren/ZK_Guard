@@ -1,13 +1,16 @@
 # zk-guard architecture
 
-Status: `0.1.0`, the first usable release (all ten steps of
-`docs/agent-workflow.md` complete).
+Status: `0.2.0` line, preparing `0.3.0`.
 `zkguard-core` defines `Finding`, `Severity`, `Confidence`, `RuleMetadata`,
-the `Rule` trait, and `ScanResult`; `zkguard-noir` does safe Noir discovery
-and text heuristics; `zkguard-rules` implements five rules behind a
-registry; `zkguard-report` renders JSON/Markdown/human output; `zkguard-cli`
-exposes the `zk-guard` binary; and `zkguard-fuzz` holds deterministic
-property tests. See "Current status" below.
+the `Rule` and `ProjectRule` traits, `SuppressedFinding`, and `ScanResult`;
+`zkguard-noir` does safe Noir discovery and text heuristics; `zkguard-rules`
+implements **six rules** behind a registry (five per-file + the
+project-level `ZK-TEST-001`); `zkguard-config` loads the optional
+`zkguard.toml` and applies suppressions; `zkguard-report` renders
+JSON/Markdown/human/SARIF output; `zkguard-cli` exposes the `zk-guard`
+binary; and `zkguard-fuzz` holds deterministic property tests. The seventh
+MVP rule, `ZK-REPLAY-001`, is still specified-only (not implemented). See
+"Current status" below.
 
 ## Goals and non-goals
 
@@ -167,18 +170,20 @@ independent from the CLI. Concretely:
 ## Current status
 
 `zkguard-core` contains the real domain model: `Finding`, `Severity`,
-`Confidence`, `RuleMetadata`, the `Rule` trait, the `SourceView` input
-type, and `ScanResult`. `zkguard-noir` implements safe Noir project
-discovery and the text-level heuristics the rules need. `zkguard-rules`
-implements five rules end-to-end — `NOIR-PUBLIC-001`, `NOIR-CONSTRAINT-001`,
-`NOIR-RANGE-001`, `ZK-HASH-001`, and `ZK-NULLIFIER-001` — and exposes a
-`registry()` function (`crates/zkguard-rules/src/registry.rs`) that is the
-single source of truth for "which rules exist," consumed by both
-`zkguard-cli`'s `scan` and `rules list` commands. The two remaining MVP
-taxonomy rules, `ZK-REPLAY-001` and `ZK-TEST-001`, are specified in
-`docs/rule-taxonomy.md` but not yet implemented (`ZK-REPLAY-001` is
-project-level and will need cross-file aggregation or a `Rule`-trait change
-when scheduled).
+`Confidence`, `RuleMetadata`, the `Rule` and `ProjectRule` traits, the
+`SourceView` input type, `SuppressedFinding`, and `ScanResult`.
+`zkguard-noir` implements safe Noir project discovery and the text-level
+heuristics the rules need. `zkguard-rules` implements six rules end-to-end:
+five per-file rules (`NOIR-PUBLIC-001`, `NOIR-CONSTRAINT-001`,
+`NOIR-RANGE-001`, `ZK-HASH-001`, `ZK-NULLIFIER-001`) exposed via `registry()`,
+plus the project-level `ZK-TEST-001` exposed via `project_registry()`
+(`crates/zkguard-rules/src/registry.rs`). Together these are the single
+source of truth for "which rules exist," consumed by both `zkguard-cli`'s
+`scan` and `rules list` commands. `zkguard-config` loads the optional
+`zkguard.toml` (rule enable/disable, `fail_on`, suppressions). The one
+remaining MVP taxonomy rule, `ZK-REPLAY-001`, is specified in
+`docs/rule-taxonomy.md` but not yet implemented (it is project-level and
+will use the `ProjectRule` mechanism added for `ZK-TEST-001` when scheduled).
 
 `zkguard-report` implements four pure renderers: `json` (machine-readable,
 matches CLAUDE.md's reporting schema field names exactly), `markdown`
@@ -205,6 +210,7 @@ shape checks — that run inside `cargo test --workspace`. One heavier
 campaign is `#[ignore]`d and never runs in default CI. `.github/workflows/ci.yml`
 (Step 10) gates every push/PR on `cargo fmt --check`, `cargo clippy
 -D warnings`, `cargo test --workspace`, and `zk-guard fixtures validate`.
-See `docs/roadmap.md` for the phased plan and the post-0.1.0 follow-ups
-(config/suppressions, `ZK-TEST-001`, `ZK-REPLAY-001`, Circom/zkVM). SARIF
-output is already implemented (0.2.0 line).
+See `docs/roadmap.md` for the phased plan and the remaining follow-ups
+(robust skip-with-warning discovery, `ZK-REPLAY-001`, an eval corpus,
+Circom/zkVM). SARIF output, `zkguard.toml` config/suppressions, and
+`ZK-TEST-001` are already implemented (0.2.0 line).

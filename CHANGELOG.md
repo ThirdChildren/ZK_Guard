@@ -7,7 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-_No changes yet._
+### Changed
+
+- **Docs cleanup for the 0.3.0 line.** `docs/architecture.md`,
+  `docs/roadmap.md`, `docs/rule-taxonomy.md`, and `docs/security-review.md`
+  updated to the real post-0.2.0 state: six implemented rules (per-file plus
+  the project-level `ZK-TEST-001`), the `zkguard-config` crate, SARIF output,
+  and the `ProjectRule` mechanism, with `ZK-REPLAY-001` marked as the only
+  specified-but-unimplemented MVP rule. Added a 0.3.0 roadmap section
+  (skip-with-warning discovery, `ZK-REPLAY-001`, an eval corpus, a
+  security-review refresh) and a "Post-v0.2.0 status" note recording that the
+  stale-README finding (M2) is resolved and the unreadable-file finding (M1)
+  is still open. README scan/JSON examples regenerated to the current
+  six-rule output.
+- **GitHub Action example** (`examples/github-actions/zkguard-sarif.yml` and
+  `docs/sarif.md`) now uses `github/codeql-action/upload-sarif@v4`.
 
 ## [0.2.0] - 2026-07-01
 

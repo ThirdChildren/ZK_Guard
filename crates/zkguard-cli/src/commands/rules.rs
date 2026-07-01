@@ -10,7 +10,7 @@ use std::io::Write;
 use crate::cli::{OutputFormat, RulesListArgs};
 use crate::exit_code;
 
-pub fn run(args: &RulesListArgs, stdout: &mut impl Write, _stderr: &mut impl Write) -> i32 {
+pub fn run(args: &RulesListArgs, stdout: &mut impl Write, stderr: &mut impl Write) -> i32 {
     let rules = zkguard_rules::registry();
     let metadata: Vec<_> = rules.iter().map(|rule| rule.metadata().clone()).collect();
 
@@ -18,6 +18,15 @@ pub fn run(args: &RulesListArgs, stdout: &mut impl Write, _stderr: &mut impl Wri
         OutputFormat::Human => render_human(&metadata),
         OutputFormat::Markdown => render_markdown(&metadata),
         OutputFormat::Json => render_json(&metadata),
+        OutputFormat::Sarif => {
+            // SARIF encodes *scan results*, not the rule registry; there is
+            // no meaningful SARIF representation of `rules list`.
+            let _ = writeln!(
+                stderr,
+                "error: --format sarif is only supported by `zk-guard scan`, not `rules list`"
+            );
+            return exit_code::USAGE_ERROR;
+        }
     };
 
     let _ = write!(stdout, "{rendered}");
@@ -141,6 +150,23 @@ mod tests {
         let parsed: Vec<zkguard_core::RuleMetadata> =
             serde_json::from_str(&text).expect("valid json array");
         assert_eq!(parsed[0].rule_id, "NOIR-PUBLIC-001");
+    }
+
+    #[test]
+    fn sarif_format_is_rejected_as_usage_error() {
+        let mut out = Vec::new();
+        let mut err = Vec::new();
+        let code = run(
+            &RulesListArgs {
+                format: OutputFormat::Sarif,
+            },
+            &mut out,
+            &mut err,
+        );
+
+        assert_eq!(code, exit_code::USAGE_ERROR);
+        assert!(out.is_empty());
+        assert!(String::from_utf8(err).expect("utf8").contains("sarif"));
     }
 
     #[test]

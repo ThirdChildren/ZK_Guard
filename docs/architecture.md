@@ -43,10 +43,12 @@ zkguard-rules   -- rule registry + rule implementations (NOIR-*, ZK-*).
                    Finding values; has no awareness of how findings are
                    rendered or which CLI flags were used.
 
-zkguard-report  -- JSON / Markdown (later SARIF) emitters. Depends on
+zkguard-report  -- JSON / Markdown / SARIF / human emitters. Depends on
                    zkguard-core only. Pure formatting of Finding values;
                    does not run rules or touch the filesystem of the
-                   scanned project.
+                   scanned project. (The SARIF emitter additionally takes
+                   rule metadata, to list every rule as a
+                   reportingDescriptor.)
 
 zkguard-fuzz    -- optional, deterministic property/mutation tests layered
                    on top of zkguard-rules and zkguard-noir fixtures.
@@ -139,8 +141,9 @@ independent from the CLI. Concretely:
   rules. Rules are Rust functions/structs registered at compile time.
 - No persistence layer. A scan is a single in-process pipeline run; nothing
   is cached to disk between runs in the MVP.
-- SARIF output, fuzzing, and Circom/zkVM support are explicitly deferred
-  extensions, not scaffolded ahead of time.
+- Fuzzing and Circom/zkVM support are explicitly deferred extensions, not
+  scaffolded ahead of time. (SARIF output was added in the 0.2.0 line; see
+  `zkguard_report::sarif` and `docs/sarif.md`.)
 
 ## Current status
 
@@ -158,11 +161,13 @@ taxonomy rules, `ZK-REPLAY-001` and `ZK-TEST-001`, are specified in
 project-level and will need cross-file aggregation or a `Rule`-trait change
 when scheduled).
 
-`zkguard-report` (Step 6) implements three pure renderers over
-`ScanResult`: `json` (machine-readable, matches CLAUDE.md's reporting
-schema field names exactly), `markdown` (GitHub-readable summary +
-per-finding sections), and `human` (the default terminal output). All
-three are `&ScanResult -> String` functions with no I/O.
+`zkguard-report` implements four pure renderers: `json` (machine-readable,
+matches CLAUDE.md's reporting schema field names exactly), `markdown`
+(GitHub-readable summary + per-finding sections), `human` (the default
+terminal output) — all three `&ScanResult -> String` with no I/O — plus
+`sarif` (SARIF 2.1.0 for GitHub code scanning; added in the 0.2.0 line),
+which is `(&ScanResult, &[RuleMetadata]) -> Result<String, _>` because it
+also lists every rule as a `reportingDescriptor`. See `docs/sarif.md`.
 
 `zkguard-cli` (Step 6) implements `zk-guard scan`, `zk-guard rules list`,
 and `zk-guard fixtures validate` via `clap`'s derive API
@@ -170,8 +175,9 @@ and `zk-guard fixtures validate` via `clap`'s derive API
 `crates/zkguard-cli/src/commands/` and a documented exit-code policy in
 `crates/zkguard-cli/src/exit_code.rs` (also mirrored in `README.md`). The
 binary remains a thin orchestration layer: it calls `zkguard_noir::discover`,
-`zkguard_rules::registry()`, and `zkguard_report::{json,markdown,human}::render`
-and contains no discovery, parsing, or rule logic of its own.
+`zkguard_rules::registry()`, and
+`zkguard_report::{json,markdown,human,sarif}::render` and contains no
+discovery, parsing, or rule logic of its own.
 
 `zkguard-fuzz` (Step 9) is no longer a placeholder: it holds deterministic,
 bounded `proptest` property tests over the registry — no-panic/totality,
@@ -181,4 +187,5 @@ campaign is `#[ignore]`d and never runs in default CI. `.github/workflows/ci.yml
 (Step 10) gates every push/PR on `cargo fmt --check`, `cargo clippy
 -D warnings`, `cargo test --workspace`, and `zk-guard fixtures validate`.
 See `docs/roadmap.md` for the phased plan and the post-0.1.0 follow-ups
-(`ZK-REPLAY-001`, `ZK-TEST-001`, SARIF, Circom/zkVM).
+(config/suppressions, `ZK-TEST-001`, `ZK-REPLAY-001`, Circom/zkVM). SARIF
+output is already implemented (0.2.0 line).

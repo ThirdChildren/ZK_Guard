@@ -101,7 +101,7 @@ pub fn check_source(source: &SourceView) -> Vec<Finding> {
                 .with_evidence(param.declaration_text.clone())
                 .with_why_it_matters(
                     "A public input that never reaches an assert/constrain is not actually \
-                     bound by the proof — a malicious prover can set it to any value, \
+                     bound by the proof. A malicious prover can set it to any value, \
                      defeating the purpose of making it public in the first place. This is \
                      the canonical \"under-constrained circuit\" bug class in ZK audits.",
                 )

@@ -65,7 +65,7 @@ pub fn metadata() -> RuleMetadata {
         DEFAULT_SEVERITY,
         DEFAULT_CONFIDENCE,
         "Project-level: flags a Noir project that declares `fn main` but has no \
-         negative test — no `#[test(should_fail)]`/`should_fail_with` attribute and no \
+         negative test: no `#[test(should_fail)]`/`should_fail_with` attribute and no \
          `#[test]` whose name contains fail/invalid/reject/negative/should_fail. Never \
          runs nargo; a purely textual check over discovered `.nr` sources.",
     )

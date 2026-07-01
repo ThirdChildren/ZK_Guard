@@ -24,7 +24,7 @@ registered in `crates/zkguard-rules/src/registry.rs`:
 | `NOIR-RANGE-001` | medium | low | Array/slice indexing, narrowing integer casts, or unsigned subtraction using a non-constant value with no apparent range-check idiom in the same function. |
 | `ZK-HASH-001` | medium | medium | A hash/commitment call built from an inline array literal with no apparent domain/context tag argument. |
 | `ZK-NULLIFIER-001` | high | low | A nullifier-like binding (by naming convention) that is either unhashed or hashed with no apparent domain tag. |
-| `ZK-TEST-001` | low | medium | **Project-level:** a project that declares `fn main` but has no negative test — no `#[test(should_fail)]`/`should_fail_with` and no `#[test]` named fail/invalid/reject/negative/should_fail. |
+| `ZK-TEST-001` | low | medium | **Project-level:** a project that declares `fn main` but has no negative test: no `#[test(should_fail)]`/`should_fail_with` and no `#[test]` named fail/invalid/reject/negative/should_fail. |
 
 See `docs/rule-taxonomy.md` for each rule's full detection strategy,
 false-positive notes, and fixture requirements.
@@ -36,7 +36,7 @@ documented in `docs/rule-taxonomy.md` and tracked in `docs/roadmap.md`;
 
 The CLI, exit codes, and JSON/Markdown/SARIF report formats described below
 are stable for the current rule set and are not expected to change shape as
-more rules are added — only the rule registry grows.
+more rules are added; only the rule registry grows.
 
 ## Installation
 
@@ -77,7 +77,7 @@ Default output is plain text to stdout. This is the real output of
   location:   fixtures/noir/vulnerable/noir-public-001/src/main.nr:10
   confidence: medium
   evidence:   pub claimed_total: Field
-  why:        A public input that never reaches an assert/constrain is not actually bound by the proof — a malicious prover can set it to any value, defeating the purpose of making it public in the first place. This is the canonical "under-constrained circuit" bug class in ZK audits.
+  why:        A public input that never reaches an assert/constrain is not actually bound by the proof. A malicious prover can set it to any value, defeating the purpose of making it public in the first place. This is the canonical "under-constrained circuit" bug class in ZK audits.
   fix:        Bind every public input to at least one constraint that a malicious prover cannot satisfy arbitrarily. If a public input is intentionally informational only, document that decision in code comments next to the parameter and accept the finding as a documented exception.
 
 Summary:
@@ -92,7 +92,7 @@ Summary:
 ```
 
 `rules run` reflects the current registry size (5), not just the rule that
-produced a finding — every scan runs every registered rule against every
+produced a finding; every scan runs every registered rule against every
 discovered source file.
 
 ### Machine-readable output (CI)
@@ -177,7 +177,7 @@ zk-guard scan ./path/to/noir-project --fail-on high
 
 `--fail-on` (default: `low`, i.e. any finding fails the scan) sets the
 minimum severity that causes a nonzero exit code. Findings below the
-threshold are still reported in the output — they just don't flip the exit
+threshold are still reported in the output; they just don't flip the exit
 code. Valid values: `critical`, `high`, `medium`, `low`, `info`. `--fail-on`
 overrides a `fail_on` set in `zkguard.toml` (see Configuration below).
 
@@ -186,7 +186,7 @@ overrides a `fail_on` set in `zkguard.toml` (see Configuration below).
 `zk-guard` needs no configuration, but an optional `zkguard.toml` in the
 project root can disable rules, set a default `fail_on`, and suppress
 specific findings (with a required reason). Config never changes what a rule
-detects — only which rules run and which findings are shown.
+detects, only which rules run and which findings are shown.
 
 ```toml
 fail_on = "high"
@@ -235,7 +235,7 @@ ZK-HASH-001          medium      medium      Hash commitment built from ambiguou
 ZK-NULLIFIER-001     high        low         Nullifier-like value generated without a visible domain separator
                      Detects `let`/function bindings whose name matches a nullifier naming convention (nullifier, null_hash, spent_tag) where the computed value is either not the output of a hash at all, or is a hash call with no apparent domain/context tag argument.
 ZK-TEST-001          low         medium      Circuit has an entry point but no negative test
-                     Project-level: flags a Noir project that declares `fn main` but has no negative test — no `#[test(should_fail)]`/`should_fail_with` attribute and no `#[test]` whose name contains fail/invalid/reject/negative/should_fail. Never runs nargo; a purely textual check over discovered `.nr` sources.
+                     Project-level: flags a Noir project that declares `fn main` but has no negative test: no `#[test(should_fail)]`/`should_fail_with` attribute and no `#[test]` whose name contains fail/invalid/reject/negative/should_fail. Never runs nargo; a purely textual check over discovered `.nr` sources.
 ```
 
 ### Validate the fixture tree
@@ -245,7 +245,7 @@ zk-guard fixtures validate
 ```
 
 Confirms every fixture project under `fixtures/noir/{vulnerable,safe}/`
-(or a directory passed via `--path`) discovers cleanly — readable `.nr`
+(or a directory passed via `--path`) discovers cleanly: readable `.nr`
 sources, no traversal errors, at least one source file per fixture
 directory. This is a fast filesystem sanity check; it does not re-run
 rules against fixtures and assert expected findings (that is covered by
@@ -265,7 +265,7 @@ zk-guard fixtures validate --path /some/other/fixtures/root
 | `2` | Invalid CLI usage or unreadable input: bad flags, a scan path that does not exist, or a path that exists but cannot be read. Nothing was scanned. |
 | `3` | Internal scanner error not attributable to user input (e.g. a report-rendering failure, or an I/O error reading a file that existed moments ago). |
 
-`zk-guard rules list` and `zk-guard fixtures validate` never return `1` —
+`zk-guard rules list` and `zk-guard fixtures validate` never return `1`:
 they have no "findings" concept, only success (`0`) or usage/internal
 error (`2`/`3`).
 
@@ -288,7 +288,7 @@ parse `scan-result.json` for finding detail in a CI annotation step.
 verifier, not an SMT solver, and not a substitute for a manual security
 audit.** A finding is "this source pattern looks suspicious," never "this
 circuit is exploitable" or "this circuit is provably under-constrained."
-Treat every finding as a lead to investigate, not a confirmed bug — severity
+Treat every finding as a lead to investigate, not a confirmed bug: severity
 and confidence describe the scanner's own uncertainty about the detection,
 not a guarantee about real-world impact. See `docs/rule-taxonomy.md`'s
 "Disclaimer" and each rule's "False-positive notes" for the specific known
@@ -299,7 +299,7 @@ Concretely:
 - **6 of 7** MVP rules from the rule taxonomy are implemented
   (`NOIR-PUBLIC-001`, `NOIR-CONSTRAINT-001`, `NOIR-RANGE-001`,
   `ZK-HASH-001`, `ZK-NULLIFIER-001`, `ZK-TEST-001`). `ZK-REPLAY-001` is
-  specified in `docs/rule-taxonomy.md` but not yet implemented — it does
+  specified in `docs/rule-taxonomy.md` but not yet implemented; it does
   not appear in `zk-guard rules list` and will never be flagged.
 - Detection is text/shape-level heuristics, not full dataflow or a parsed
   AST. Most rules are single-function; `ZK-TEST-001` is project-level (it
@@ -356,43 +356,42 @@ request, with four jobs:
 1. `cargo fmt --all -- --check`
 2. `cargo clippy --workspace --all-targets -- -D warnings`
 3. `cargo test --workspace` (the `#[ignore]`d heavy fuzz campaign above is
-   never run here — default `cargo test` skips ignored tests, and CI does
+   never run here: default `cargo test` skips ignored tests, and CI does
    not pass `--ignored`/`--include-ignored`)
 4. `cargo build --release -p zkguard-cli` followed by
    `./target/release/zk-guard fixtures validate` against the checked-in
    `fixtures/noir` tree
 
-CI only builds and runs this repository's own code — it never executes
+CI only builds and runs this repository's own code; it never executes
 anything from a scanned target repository, makes no network calls beyond
 crates.io and GitHub Actions itself, and uses no secrets, deploy keys, or
 publishing tokens. There is no release/publish automation yet (see the
 checklist below); a green CI run is required, but not sufficient, before
 tagging a release.
 
-## 0.1.0 release checklist
+## 0.2.0 release checklist
 
-Mapped to the project's definition of done for the first usable release.
-This is the honest, current state — not aspirational:
+The honest, current state of the second release (see `CHANGELOG.md` for the
+full history):
 
-| Definition-of-done item | Status |
+| Item | Status |
 |---|---|
-| `zk-guard scan` works on a Noir fixture directory | Done — verified against all 23 fixture projects under `fixtures/noir/`. |
-| At least 5 rules implemented | Done — 5 rules registered (`NOIR-PUBLIC-001`, `NOIR-CONSTRAINT-001`, `NOIR-RANGE-001`, `ZK-HASH-001`, `ZK-NULLIFIER-001`); 2 taxonomy rules remain deferred. |
-| JSON and Markdown reports work | Done — both renderers are pure, tested, and produce the documented field shapes. |
-| Tests include vulnerable and safe fixtures | Done — every implemented rule has at least one vulnerable and one safe fixture; several have extra edge-case/false-positive-guard fixtures. |
-| CI runs formatting, clippy, and tests | Done as of this change — `.github/workflows/ci.yml`. |
-| README has install/usage/limitations/examples | Done as of this change — this document. |
-| Docs state this is a best-effort scanner, not a formal verifier | Done — stated above and in `docs/rule-taxonomy.md`'s "Disclaimer." |
+| `zk-guard scan` works on a Noir fixture directory | Done: verified against all 26 fixture projects under `fixtures/noir/`. |
+| Rule coverage | Done: 6 of 7 MVP rules registered (`NOIR-PUBLIC-001`, `NOIR-CONSTRAINT-001`, `NOIR-RANGE-001`, `ZK-HASH-001`, `ZK-NULLIFIER-001`, `ZK-TEST-001`); only `ZK-REPLAY-001` remains deferred. |
+| Report formats | Done: JSON, Markdown, human, and SARIF 2.1.0 renderers, all pure and tested. |
+| Configuration and suppressions | Done: optional `zkguard.toml` (rule enable/disable, `fail_on`, `[[suppress]]`) plus inline `// zkguard:ignore` directives, each requiring a reason. |
+| Tests include vulnerable and safe fixtures | Done: every implemented rule has at least one vulnerable and one safe fixture; several have extra edge-case fixtures. |
+| CI runs formatting, clippy, tests, and fixture validation | Done: `.github/workflows/ci.yml`. |
+| README has install/usage/limitations/examples | Done: this document. |
+| Docs state this is a best-effort scanner, not a formal verifier | Done: stated above and in `docs/rule-taxonomy.md`'s "Disclaimer." |
 
-Known gaps tracked but intentionally **not** addressed by this release
-step:
+Known gaps tracked but intentionally **not** addressed in this release:
 
 - A single unreadable/non-UTF-8 `.nr` file currently aborts an entire scan
-  instead of being skipped with a warning. Logic fix, out of scope for
-  CI/docs work.
-- `ZK-REPLAY-001` is specified but not implemented (`ZK-TEST-001` and SARIF
-  landed in the 0.2.0 line).
-- No automated release/publish workflow — building a release binary is a
+  instead of being skipped with a warning. Logic fix, tracked separately.
+- `ZK-REPLAY-001` is specified but not implemented; it will use the
+  project-level `ProjectRule` mechanism added for `ZK-TEST-001`.
+- No automated release/publish workflow. Building a release binary is a
   manual `cargo build --release -p zkguard-cli` step; there is no package
   upload, crates.io publish, or tagged-artifact automation, and none should
   be added without explicit approval.

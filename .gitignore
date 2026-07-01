@@ -12,6 +12,7 @@ Cargo.lock.bak
 # Local scratch / generated reports
 /report.json
 /report.md
+*.sarif
 
 # Local Claude Code tooling (agent definitions, agent memory, local settings)
 .claude/

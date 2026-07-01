@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+_No changes yet._
+
+## [0.2.0] - 2026-07-01
+
+Second release: makes zk-guard usable in real CI. Adds SARIF output,
+optional `zkguard.toml` configuration with finding suppressions, and the
+project-level `ZK-TEST-001` rule (6 of 7 MVP rules now implemented). Still a
+best-effort static scanner, **not a formal verifier**.
+
 ### Added
 
 - **`ZK-TEST-001` rule** (test hygiene) — flags a Noir project that declares
@@ -101,5 +110,6 @@ and findings are not proof of exploitability.
 - No SARIF output; JSON and Markdown only.
 - No automated release/publish workflow.
 
-[Unreleased]: https://github.com/ThirdChildren/ZK_Guard/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/ThirdChildren/ZK_Guard/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/ThirdChildren/ZK_Guard/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/ThirdChildren/ZK_Guard/releases/tag/v0.1.0

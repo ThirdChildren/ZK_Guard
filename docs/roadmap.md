@@ -182,11 +182,11 @@ The 0.2.0 line makes zk-guard usable in real CI. Targets, in order:
       `reportingDescriptor`; every finding as a `result` with a stable
       `ruleId`, `level`, `message`, and `physicalLocation`/`region.startLine`.
       See `docs/sarif.md` and `examples/github-actions/zkguard-sarif.yml`.
-- [ ] **Configuration file** (`zkguard.toml`): per-rule enable/disable,
-      `fail_on` (CLI takes precedence), path handling; plus **suppressions**
+- [x] **Configuration file** (`zkguard.toml`) in `zkguard-config`: per-rule
+      enable/disable, `fail_on` (CLI takes precedence); plus **suppressions**
       (inline `// zkguard:ignore RULE_ID reason="..."` and file-based), each
       requiring a non-empty reason, with `--show-suppressed` and a
-      `suppressed_count` in reports.
+      `suppressed_count` in reports. See `docs/configuration.md`.
 - [ ] **`ZK-TEST-001`** (negative/`should_fail` test-coverage check) — the
       sixth MVP taxonomy rule, specified in `docs/rule-taxonomy.md`.
 

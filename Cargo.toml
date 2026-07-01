@@ -7,6 +7,7 @@ members = [
     "crates/zkguard-rules",
     "crates/zkguard-fuzz",
     "crates/zkguard-report",
+    "crates/zkguard-config",
 ]
 
 [workspace.package]
@@ -24,6 +25,7 @@ rust-version = "1.75"
 serde = { version = "1", default-features = false, features = ["derive", "std"] }
 serde_json = { version = "1" }
 clap = { version = "4", features = ["derive"] }
+toml = { version = "0.8", default-features = false, features = ["parse"] }
 
 # Workspace-wide lint defaults. Individual crates inherit these via
 # `[lints] workspace = true`. Kept intentionally small at this stage;

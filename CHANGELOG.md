@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`zkguard.toml` configuration + suppressions** — new `zkguard-config`
+  crate. An optional `zkguard.toml` in the project root can enable/disable
+  rules per `rule_id`, set a default `fail_on` severity (overridden by the CLI
+  `--fail-on` flag), and suppress findings. Suppressions come from inline
+  `// zkguard:ignore RULE_ID reason="..."` directives (on the flagged line or
+  the line above) or `[[suppress]]` entries (rule + path, optional line); each
+  requires a non-empty reason. Reports include a `suppressed_count` in every
+  format, and `--show-suppressed` additionally lists suppressed findings
+  (with reason and source). Rule detection semantics are unchanged; SARIF,
+  JSON, Markdown, and human output stay backward compatible (JSON/human/
+  Markdown gain only additive suppression fields/lines). See
+  `docs/configuration.md`.
 - **SARIF 2.1.0 output** — `zk-guard scan --format sarif` emits a SARIF log
   for GitHub code scanning / CI upload (`github/codeql-action/upload-sarif`).
   Every registered rule becomes a `reportingDescriptor`; every finding a

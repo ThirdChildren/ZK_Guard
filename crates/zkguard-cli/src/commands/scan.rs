@@ -49,7 +49,31 @@ pub fn run(args: &ScanArgs, stdout: &mut impl Write, stderr: &mut impl Write) ->
         }
     };
 
-    let rules = zkguard_rules::registry();
+    // Optional zkguard.toml lives in the project root: the scanned directory,
+    // or the parent of a single scanned file.
+    let config_dir = if args.path.is_dir() {
+        args.path.clone()
+    } else {
+        args.path
+            .parent()
+            .map_or_else(|| std::path::PathBuf::from("."), Path::to_path_buf)
+    };
+    let config = match zkguard_config::load(&config_dir) {
+        Ok(config) => config,
+        Err(err) => {
+            let _ = writeln!(stderr, "error: {err}");
+            return exit_code::USAGE_ERROR;
+        }
+    };
+
+    // Only run rules the config leaves enabled. `rules_meta` (registry order)
+    // is also what the SARIF renderer lists as reportingDescriptors.
+    let rules: Vec<_> = zkguard_rules::registry()
+        .into_iter()
+        .filter(|rule| config.is_rule_enabled(&rule.metadata().rule_id))
+        .collect();
+    let rules_meta: Vec<RuleMetadata> = rules.iter().map(|r| r.metadata().clone()).collect();
+
     let mut findings = Vec::new();
     for source in &project.sources {
         for rule in &rules {
@@ -57,15 +81,27 @@ pub fn run(args: &ScanArgs, stdout: &mut impl Write, stderr: &mut impl Write) ->
         }
     }
 
-    // Collected once here (registry order) so the SARIF renderer can emit a
-    // `reportingDescriptor` per rule; the other formats ignore it.
-    let rules_meta: Vec<RuleMetadata> = rules.iter().map(|r| r.metadata().clone()).collect();
+    // Partition into active vs suppressed (inline directives + config entries);
+    // rule detection itself is unchanged.
+    let outcome = zkguard_config::apply_suppressions(findings, &project.sources, &config);
+    for warning in &outcome.warnings {
+        let _ = writeln!(stderr, "warning: {warning}");
+    }
+    let suppressed_count = u32::try_from(outcome.suppressed.len()).unwrap_or(u32::MAX);
 
     let result = ScanResult {
-        findings,
+        findings: outcome.active,
         files_scanned: u32::try_from(project.file_count()).unwrap_or(u32::MAX),
         rules_run: rules_meta.iter().map(|m| m.rule_id.clone()).collect(),
+        suppressed_count,
+        suppressed: if args.show_suppressed {
+            outcome.suppressed
+        } else {
+            Vec::new()
+        },
     };
+
+    let fail_on = config.effective_fail_on(args.fail_on.map(|f| f.to_severity()));
 
     let rendered = match render(&result, args.format, &rules_meta) {
         Ok(text) => text,
@@ -94,7 +130,7 @@ pub fn run(args: &ScanArgs, stdout: &mut impl Write, stderr: &mut impl Write) ->
         let _ = write!(stdout, "{rendered}");
     }
 
-    if result.has_finding_at_or_above(args.fail_on.to_severity()) {
+    if result.has_finding_at_or_above(fail_on) {
         exit_code::FINDINGS_PRESENT
     } else {
         exit_code::SUCCESS
@@ -145,7 +181,8 @@ mod tests {
             path,
             format,
             output: None,
-            fail_on: FailThreshold::Low,
+            fail_on: None,
+            show_suppressed: false,
         }
     }
 
@@ -298,7 +335,7 @@ mod tests {
         // the scan means this finding (still reported) does not flip the
         // exit code.
         let mut scan_args = args(root.clone(), OutputFormat::Human);
-        scan_args.fail_on = FailThreshold::Critical;
+        scan_args.fail_on = Some(FailThreshold::Critical);
 
         let mut out = Vec::new();
         let mut err = Vec::new();
@@ -310,6 +347,137 @@ mod tests {
             text.contains("NOIR-PUBLIC-001"),
             "finding below threshold must still be reported"
         );
+
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    /// Writes a vulnerable project (one NOIR-PUBLIC-001 finding) with an
+    /// optional `main.nr` body override and optional `zkguard.toml`.
+    fn vulnerable_project(name: &str, main_nr: &str, config: Option<&str>) -> std::path::PathBuf {
+        let root = temp_dir(name);
+        fs::write(root.join("Nargo.toml"), "[package]\nname=\"x\"\n").expect("write");
+        fs::write(root.join("main.nr"), main_nr).expect("write");
+        if let Some(cfg) = config {
+            fs::write(root.join("zkguard.toml"), cfg).expect("write");
+        }
+        root
+    }
+
+    const VULN_MAIN: &str =
+        "fn main(secret: Field, pub claimed_total: Field) {\n    let computed = secret * 2;\n}\n";
+
+    #[test]
+    fn config_disabling_rule_removes_its_findings() {
+        let root = vulnerable_project(
+            "cfg-disable",
+            VULN_MAIN,
+            Some("[rules]\n\"NOIR-PUBLIC-001\" = false\n"),
+        );
+
+        let mut out = Vec::new();
+        let mut err = Vec::new();
+        let code = run(&args(root.clone(), OutputFormat::Json), &mut out, &mut err);
+
+        assert_eq!(
+            code,
+            exit_code::SUCCESS,
+            "disabled rule can't fail the scan"
+        );
+        let parsed: ScanResult =
+            serde_json::from_str(&String::from_utf8(out).expect("utf8")).expect("json");
+        assert!(parsed.findings.is_empty());
+        assert!(
+            !parsed.rules_run.contains(&"NOIR-PUBLIC-001".to_string()),
+            "disabled rule must not appear in rules_run"
+        );
+
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn inline_directive_suppresses_finding() {
+        let main_nr = "fn main(secret: Field, pub claimed_total: Field) { // zkguard:ignore NOIR-PUBLIC-001 reason=\"informational only\"\n    let computed = secret * 2;\n}\n";
+        let root = vulnerable_project("inline-suppress", main_nr, None);
+
+        let mut out = Vec::new();
+        let mut err = Vec::new();
+        let code = run(&args(root.clone(), OutputFormat::Json), &mut out, &mut err);
+
+        assert_eq!(code, exit_code::SUCCESS, "only finding was suppressed");
+        let parsed: ScanResult =
+            serde_json::from_str(&String::from_utf8(out).expect("utf8")).expect("json");
+        assert!(parsed.findings.is_empty());
+        assert_eq!(parsed.suppressed_count, 1);
+
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn file_suppression_and_show_suppressed_lists_it() {
+        let root = vulnerable_project(
+            "file-suppress",
+            VULN_MAIN,
+            Some(
+                "[[suppress]]\nrule = \"NOIR-PUBLIC-001\"\npath = \"main.nr\"\nreason = \"documented exception\"\n",
+            ),
+        );
+
+        let mut scan_args = args(root.clone(), OutputFormat::Human);
+        scan_args.show_suppressed = true;
+
+        let mut out = Vec::new();
+        let mut err = Vec::new();
+        let code = run(&scan_args, &mut out, &mut err);
+
+        assert_eq!(code, exit_code::SUCCESS);
+        let text = String::from_utf8(out).expect("utf8");
+        assert!(text.contains("suppressed: 1"));
+        assert!(text.contains("Suppressed findings:"));
+        assert!(text.contains("documented exception"));
+
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn cli_fail_on_overrides_config_fail_on() {
+        // config says only `critical` fails; the finding is `high`.
+        let root = vulnerable_project(
+            "fail-on-precedence",
+            VULN_MAIN,
+            Some("fail_on = \"critical\"\n"),
+        );
+
+        // No CLI flag: config wins -> high finding does not fail.
+        let mut out = Vec::new();
+        let mut err = Vec::new();
+        let code = run(&args(root.clone(), OutputFormat::Human), &mut out, &mut err);
+        assert_eq!(code, exit_code::SUCCESS, "config fail_on=critical applies");
+
+        // CLI --fail-on high overrides config -> high finding fails.
+        let mut scan_args = args(root.clone(), OutputFormat::Human);
+        scan_args.fail_on = Some(FailThreshold::High);
+        let mut out2 = Vec::new();
+        let mut err2 = Vec::new();
+        let code2 = run(&scan_args, &mut out2, &mut err2);
+        assert_eq!(code2, exit_code::FINDINGS_PRESENT, "CLI fail_on wins");
+
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn invalid_config_is_a_usage_error() {
+        let root = vulnerable_project(
+            "bad-config",
+            VULN_MAIN,
+            Some("[[suppress]]\nrule = \"X\"\npath = \"main.nr\"\nreason = \"\"\n"),
+        );
+
+        let mut out = Vec::new();
+        let mut err = Vec::new();
+        let code = run(&args(root.clone(), OutputFormat::Human), &mut out, &mut err);
+
+        assert_eq!(code, exit_code::USAGE_ERROR);
+        assert!(String::from_utf8(err).expect("utf8").contains("reason"));
 
         let _ = fs::remove_dir_all(&root);
     }

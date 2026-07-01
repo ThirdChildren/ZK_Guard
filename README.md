@@ -132,9 +132,14 @@ output of
     "NOIR-RANGE-001",
     "ZK-HASH-001",
     "ZK-NULLIFIER-001"
-  ]
+  ],
+  "suppressed_count": 0
 }
 ```
+
+`suppressed_count` reports how many findings were hidden by a suppression
+(see Configuration below); with `--show-suppressed`, a `suppressed` array of
+those findings is also included.
 
 ### SARIF output (GitHub code scanning)
 
@@ -174,7 +179,39 @@ zk-guard scan ./path/to/noir-project --fail-on high
 `--fail-on` (default: `low`, i.e. any finding fails the scan) sets the
 minimum severity that causes a nonzero exit code. Findings below the
 threshold are still reported in the output — they just don't flip the exit
-code. Valid values: `critical`, `high`, `medium`, `low`, `info`.
+code. Valid values: `critical`, `high`, `medium`, `low`, `info`. `--fail-on`
+overrides a `fail_on` set in `zkguard.toml` (see Configuration below).
+
+### Configuration and suppressions (`zkguard.toml`)
+
+`zk-guard` needs no configuration, but an optional `zkguard.toml` in the
+project root can disable rules, set a default `fail_on`, and suppress
+specific findings (with a required reason). Config never changes what a rule
+detects — only which rules run and which findings are shown.
+
+```toml
+fail_on = "high"
+
+[rules]
+"NOIR-RANGE-001" = false     # disable a rule
+
+[[suppress]]
+rule   = "NOIR-PUBLIC-001"
+path   = "src/main.nr"
+reason = "claimed_total is intentionally informational"
+```
+
+Findings can also be suppressed inline, on the flagged line or the line above
+it:
+
+```rust
+let idx = i as u32; // zkguard:ignore NOIR-RANGE-001 reason="bounded by assert above"
+```
+
+Every suppression requires a non-empty `reason`. Suppressed findings are
+counted in every report (`suppressed_count`); pass `--show-suppressed` to also
+list them (with reason and source). See [`docs/configuration.md`](docs/configuration.md)
+for the full reference.
 
 ### List registered rules
 
@@ -270,9 +307,10 @@ Concretely, as of `0.1.0`:
   negative sources, not bugs.
 - Noir only. Circom and zkVM guest-code support are explicitly out of
   scope for now (see `docs/roadmap.md`).
-- SARIF 2.1.0 output is available (`--format sarif`, see
-  [`docs/sarif.md`](docs/sarif.md)). A config file, inline suppressions, and
-  `ZK-TEST-001` are the remaining planned `0.2.0` targets (see
+- SARIF 2.1.0 output (`--format sarif`, see [`docs/sarif.md`](docs/sarif.md))
+  and `zkguard.toml` config + suppressions (see
+  [`docs/configuration.md`](docs/configuration.md)) are available. The
+  `ZK-TEST-001` rule is the remaining planned `0.2.0` target (see
   `docs/roadmap.md`).
 - No cryptographic soundness claims of any kind are made about a scanned
   circuit, regardless of how many (or how few) findings a scan produces.

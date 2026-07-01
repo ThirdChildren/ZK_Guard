@@ -55,9 +55,16 @@ zkguard-fuzz    -- optional, deterministic property/mutation tests layered
                    Not part of the default scan path. Added in Step 9,
                    after static rules stabilize.
 
+zkguard-config  -- optional `zkguard.toml` loading + finding suppression
+                   (0.2.0 line). Depends on zkguard-core only. Orchestration
+                   *policy*, deliberately outside the analysis crates: it
+                   decides which rules run, the fail-on severity, and which
+                   findings are suppressed, but never changes rule detection.
+
 zkguard-cli     -- binary `zk-guard`. Argument parsing and wiring only:
-                   discovery -> rules -> report. Depends on all of the
-                   above; nothing depends on zkguard-cli.
+                   config -> discovery -> rules -> suppression -> report.
+                   Depends on all of the above; nothing depends on
+                   zkguard-cli.
 ```
 
 Dependency direction is strictly one-way:
@@ -69,6 +76,7 @@ zkguard-cli
   -> zkguard-noir -> zkguard-core
 zkguard-fuzz -> zkguard-core (and, once it exists, test-only deps on
                 zkguard-rules / zkguard-noir fixtures)
+zkguard-config -> zkguard-core
 ```
 
 `zkguard-core` has no dependents among analysis crates depending on it
@@ -82,8 +90,16 @@ future extensions.
 The scan pipeline is linear and has no feedback loops:
 
 ```text
-discovery -> parse -> rules -> findings -> report
+config -> discovery -> parse -> rules -> findings -> suppression -> report
 ```
+
+`config` (`zkguard-config`) loads an optional `zkguard.toml` and filters the
+rule registry to the enabled rules before anything runs. `suppression`
+(also `zkguard-config`) partitions the raw findings into active vs suppressed
+using inline `// zkguard:ignore` directives and `[[suppress]]` entries; only
+active findings reach the report, and `ScanResult` carries the suppressed
+count (and, with `--show-suppressed`, the suppressed findings). Neither step
+changes what a rule detects. See `docs/configuration.md`.
 
 1. **Discovery** (`zkguard-noir`): given a filesystem path, locate Noir
    projects (`Nargo.toml`, `src/`) using safe traversal — no following of

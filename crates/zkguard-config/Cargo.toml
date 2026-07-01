@@ -1,0 +1,14 @@
+[package]
+name = "zkguard-config"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+zkguard-core = { path = "../zkguard-core" }
+serde = { workspace = true }
+toml = { workspace = true }

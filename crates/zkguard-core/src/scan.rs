@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::finding::Finding;
 use crate::severity::Severity;
+use crate::suppression::SuppressedFinding;
 
 /// All findings from one scan run, plus minimal run metadata.
 ///
@@ -23,8 +24,21 @@ pub struct ScanResult {
     /// Stable rule IDs that were executed during this scan (e.g.
     /// `["NOIR-PUBLIC-001"]`), regardless of whether they produced any
     /// findings. Lets a report distinguish "rule ran, found nothing" from
-    /// "rule did not run."
+    /// "rule did not run." Rules disabled via `zkguard.toml` are not listed.
     pub rules_run: Vec<String>,
+    /// Number of findings that were detected but suppressed (via an inline
+    /// directive or a `zkguard.toml` `[[suppress]]` entry) and therefore
+    /// excluded from [`Self::findings`]. Reported in every format so a
+    /// suppressed finding is never silently invisible. `#[serde(default)]`
+    /// keeps older JSON (without this field) parseable.
+    #[serde(default)]
+    pub suppressed_count: u32,
+    /// The suppressed findings themselves, populated only when the caller
+    /// asked for them (`--show-suppressed`); otherwise empty and omitted
+    /// from JSON. `suppressed_count` is authoritative for the *count*
+    /// regardless of whether this list is populated.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub suppressed: Vec<SuppressedFinding>,
 }
 
 impl ScanResult {
@@ -93,6 +107,7 @@ mod tests {
             ],
             files_scanned: 2,
             rules_run: vec!["R1".to_string(), "R2".to_string(), "R3".to_string()],
+            ..Default::default()
         };
 
         assert_eq!(result.total_findings(), 3);
@@ -111,6 +126,7 @@ mod tests {
             ],
             files_scanned: 1,
             rules_run: vec![],
+            ..Default::default()
         };
 
         let sorted = result.sorted_by_severity();
@@ -127,6 +143,7 @@ mod tests {
             findings: vec![finding("R1", Severity::Medium)],
             files_scanned: 1,
             rules_run: vec![],
+            ..Default::default()
         };
 
         assert!(result.has_finding_at_or_above(Severity::Medium));
@@ -148,9 +165,24 @@ mod tests {
             findings: vec![finding("R1", Severity::High)],
             files_scanned: 1,
             rules_run: vec!["R1".to_string()],
+            ..Default::default()
         };
         let json = serde_json::to_string(&result).expect("serialize");
         let back: ScanResult = serde_json::from_str(&json).expect("deserialize");
         assert_eq!(back, result);
+    }
+
+    #[test]
+    fn suppressed_fields_default_to_empty_and_are_omitted_when_absent() {
+        // Older JSON without the new fields still deserializes (serde default).
+        let legacy = r#"{"findings":[],"files_scanned":0,"rules_run":[]}"#;
+        let parsed: ScanResult = serde_json::from_str(legacy).expect("deserialize legacy");
+        assert_eq!(parsed.suppressed_count, 0);
+        assert!(parsed.suppressed.is_empty());
+
+        // An empty `suppressed` list is omitted from serialization.
+        let json = serde_json::to_string(&ScanResult::new()).expect("serialize");
+        assert!(!json.contains("\"suppressed\""));
+        assert!(json.contains("\"suppressed_count\":0"));
     }
 }

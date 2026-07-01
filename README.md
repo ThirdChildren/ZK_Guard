@@ -253,7 +253,9 @@ Concretely, as of `0.1.0`:
   negative sources, not bugs.
 - Noir only. Circom and zkVM guest-code support are explicitly out of
   scope for now (see `docs/roadmap.md`).
-- No SARIF output yet (JSON and Markdown only, by 0.1.0 design).
+- No SARIF output yet (JSON and Markdown only, by 0.1.0 design); SARIF,
+  a config file, inline suppressions, and `ZK-TEST-001` are the planned
+  `0.2.0` targets (see `docs/roadmap.md`).
 - No cryptographic soundness claims of any kind are made about a scanned
   circuit, regardless of how many (or how few) findings a scan produces.
   A clean scan (exit code `0`) means "the implemented heuristics found

@@ -1,6 +1,7 @@
 # zk-guard architecture
 
-Status: 0.1.0-ready (all ten steps of `docs/agent-workflow.md` complete).
+Status: `0.1.0`, the first usable release (all ten steps of
+`docs/agent-workflow.md` complete).
 `zkguard-core` defines `Finding`, `Severity`, `Confidence`, `RuleMetadata`,
 the `Rule` trait, and `ScanResult`; `zkguard-noir` does safe Noir discovery
 and text heuristics; `zkguard-rules` implements five rules behind a

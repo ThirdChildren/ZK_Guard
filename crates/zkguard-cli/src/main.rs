@@ -8,7 +8,7 @@
 //! crate depends on them, never the other way around. `main` itself is
 //! intentionally a few lines: parse arguments, dispatch, exit.
 //!
-//! ## Commands implemented (Step 6 of `docs/agent-workflow.md`)
+//! ## Commands implemented
 //!
 //! - `zk-guard scan <path> [--format human|json|markdown] [--output FILE]
 //!   [--fail-on SEVERITY]`

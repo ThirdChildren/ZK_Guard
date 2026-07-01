@@ -5,7 +5,11 @@ All notable changes to `zk-guard` are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.1.0-unreleased]
+## [Unreleased]
+
+_No changes yet._
+
+## [0.1.0] - 2026-07-01
 
 First usable release of `zk-guard`, a best-effort static security scanner
 for zero-knowledge application source code (Noir first). This is developer
@@ -64,4 +68,5 @@ and findings are not proof of exploitability.
 - No SARIF output; JSON and Markdown only.
 - No automated release/publish workflow.
 
-[0.1.0-unreleased]: https://github.com/ThirdChildren/ZK_Guard
+[Unreleased]: https://github.com/ThirdChildren/ZK_Guard/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/ThirdChildren/ZK_Guard/releases/tag/v0.1.0

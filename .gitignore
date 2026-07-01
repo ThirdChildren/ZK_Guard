@@ -13,8 +13,6 @@ Cargo.lock.bak
 /report.json
 /report.md
 
+# Local Claude Code tooling (agent definitions, agent memory, local settings)
 .claude/
-docs/agent-workflow.md
-docs/security-review.md
-CLAUDE.md
 README-template.md

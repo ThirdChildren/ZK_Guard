@@ -162,9 +162,8 @@ Maps to Step 10 (`ci-release-engineer`).
       statement that this is a best-effort scanner, not a formal verifier.
 - [x] 0.1.0 release checklist satisfied end-to-end (see `README.md`).
 - Exit criteria: CI is green on a clean clone; tagging 0.1.0 requires no
-  manual undocumented steps. **Met** for the implemented scope; the version
-  is still tagged `0.1.0-unreleased` (see `CHANGELOG.md`) pending a release
-  decision.
+  manual undocumented steps. **Met** for the implemented scope; `0.1.0` is
+  cut in `CHANGELOG.md` and ready to tag.
 
 ## Explicitly out of scope for 0.1.0
 
@@ -172,3 +171,20 @@ Maps to Step 10 (`ci-release-engineer`).
 - SARIF report emission (future extension for `zkguard-report`).
 - Any network calls, telemetry, or remote rule updates.
 - Auto-execution of anything inside a scanned repository.
+
+## Planned for 0.2.0
+
+The next release targets, none of which are implemented in 0.1.0:
+
+- **SARIF report output** in `zkguard-report`, for GitHub code-scanning /
+  CI integration alongside the existing JSON and Markdown emitters.
+- **`ZK-TEST-001`** (negative/`should_fail` test-coverage check) — the
+  sixth MVP taxonomy rule, specified in `docs/rule-taxonomy.md`.
+- **Configuration file** (per-repo rule enable/disable, severity
+  overrides, path excludes).
+- **Inline finding suppressions** (e.g. an annotation/comment convention to
+  accept a documented finding without failing the scan).
+
+`ZK-REPLAY-001` (project-level replay/uniqueness binding) remains specified
+but unscheduled: it needs cross-file aggregation or a `Rule`-trait change
+(see Phase 7), so it is tracked separately from the 0.2.0 items above.

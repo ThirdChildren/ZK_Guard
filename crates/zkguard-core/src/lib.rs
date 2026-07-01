@@ -40,7 +40,7 @@ mod suppression;
 
 pub use confidence::Confidence;
 pub use finding::Finding;
-pub use rule::{Rule, RuleMetadata, SourceView};
+pub use rule::{ProjectRule, Rule, RuleMetadata, SourceView};
 pub use scan::ScanResult;
 pub use severity::Severity;
 pub use suppression::{SuppressedFinding, SuppressionKind};

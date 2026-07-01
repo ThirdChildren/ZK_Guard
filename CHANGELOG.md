@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`ZK-TEST-001` rule** (test hygiene) — flags a Noir project that declares
+  `fn main` but has no negative test: no `#[test(should_fail)]` /
+  `should_fail_with` attribute and no `#[test]` whose name contains
+  fail/invalid/reject/negative/should_fail. It is the first **project-level**
+  rule, added via a new `zkguard_core::ProjectRule` trait (it aggregates
+  `#[test]` attributes across all `.nr` files rather than scanning one file
+  in isolation). Never runs `nargo`; a purely textual check. Severity `low`,
+  confidence `medium`. Ships with vulnerable (no-tests, happy-path-only) and
+  safe fixtures. `rules list`, SARIF `reportingDescriptor`s, `rules_run`, and
+  config enable/disable all cover it. `ZK-REPLAY-001` remains the only
+  unimplemented MVP rule.
 - **`zkguard.toml` configuration + suppressions** — new `zkguard-config`
   crate. An optional `zkguard.toml` in the project root can enable/disable
   rules per `rule_id`, set a default `fail_on` severity (overridden by the CLI

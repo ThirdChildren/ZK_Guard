@@ -22,18 +22,22 @@
 //!   `docs/rule-taxonomy.md`.
 //! - [`zk_nullifier_001`]: the `ZK-NULLIFIER-001` rule ("nullifier-like
 //!   value generated without a visible domain separator"), per
-//!   `docs/rule-taxonomy.md`. This completes Step 7's rule list.
+//!   `docs/rule-taxonomy.md`.
+//! - [`zk_test_001`]: the `ZK-TEST-001` rule ("circuit has an entry point but
+//!   no negative test"), per `docs/rule-taxonomy.md`. This is a
+//!   **project-level** rule ([`zkguard_core::ProjectRule`]): it reasons over
+//!   all `.nr` sources at once, not one file in isolation.
 //!
-//! ## What this crate does not yet contain (deferred past Step 7)
+//! ## What this crate does not yet contain (deferred)
 //!
-//! `ZK-REPLAY-001` and `ZK-TEST-001` from CLAUDE.md's "MVP rule families"
-//! section. Each rule lands with its own fixture pair and tests, per
-//! non-negotiable design principle 9, when implemented.
+//! `ZK-REPLAY-001` from CLAUDE.md's "MVP rule families" section: it is
+//! project-level replay/uniqueness binding and remains unscheduled (see
+//! `docs/roadmap.md`).
 //!
-//! [`registry::registry`] is the single source of truth for "which rules
-//! exist": both `zk-guard scan` and `zk-guard rules list` (Step 6 of
-//! `docs/agent-workflow.md`) call it, so the two commands can never
-//! disagree about the rule set.
+//! [`registry::registry`] (per-file rules) and [`registry::project_registry`]
+//! (project-level rules) are the single source of truth for "which rules
+//! exist": both `zk-guard scan` and `zk-guard rules list` call them, so the
+//! two commands can never disagree about the rule set.
 //!
 //! Per design principle 2, every emitted `Finding` must carry rule_id,
 //! title, severity, confidence, location, evidence, why_it_matters, and
@@ -45,10 +49,12 @@ pub mod noir_range_001;
 pub mod registry;
 pub mod zk_hash_001;
 pub mod zk_nullifier_001;
+pub mod zk_test_001;
 
 pub use noir_constraint_001::NoirConstraint001;
 pub use noir_public_001::NoirPublic001;
 pub use noir_range_001::NoirRange001;
-pub use registry::registry;
+pub use registry::{project_registry, registry};
 pub use zk_hash_001::ZkHash001;
 pub use zk_nullifier_001::ZkNullifier001;
+pub use zk_test_001::ZkTest001;

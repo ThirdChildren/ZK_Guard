@@ -187,10 +187,13 @@ The 0.2.0 line makes zk-guard usable in real CI. Targets, in order:
       (inline `// zkguard:ignore RULE_ID reason="..."` and file-based), each
       requiring a non-empty reason, with `--show-suppressed` and a
       `suppressed_count` in reports. See `docs/configuration.md`.
-- [ ] **`ZK-TEST-001`** (negative/`should_fail` test-coverage check) — the
-      sixth MVP taxonomy rule, specified in `docs/rule-taxonomy.md`.
+- [x] **`ZK-TEST-001`** (negative/`should_fail` test-coverage check) — the
+      sixth MVP taxonomy rule. Implemented as a project-level rule via the new
+      `zkguard_core::ProjectRule` trait (it aggregates `#[test]` attributes
+      across a project's `.nr` files); gated on `fn main`, recognizing both
+      the `should_fail` attribute and negatively-named tests. See
+      `docs/rule-taxonomy.md`.
 
 `ZK-REPLAY-001` (project-level replay/uniqueness binding) remains specified
-but unscheduled: it needs cross-file aggregation or a `Rule`-trait change
-(see Phase 7), so it is tracked separately from the 0.2.0 items above, and
-is **not** part of 0.2.0.
+but unscheduled. The `ProjectRule` trait added for `ZK-TEST-001` is the
+mechanism it will use when scheduled; it is **not** part of 0.2.0.

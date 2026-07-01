@@ -10,13 +10,14 @@
 //! Adding a new rule (Step 7+) means adding one line to [`registry`]; no
 //! other crate needs to change to pick it up.
 
-use zkguard_core::Rule;
+use zkguard_core::{ProjectRule, Rule};
 
 use crate::noir_constraint_001::NoirConstraint001;
 use crate::noir_public_001::NoirPublic001;
 use crate::noir_range_001::NoirRange001;
 use crate::zk_hash_001::ZkHash001;
 use crate::zk_nullifier_001::ZkNullifier001;
+use crate::zk_test_001::ZkTest001;
 
 /// Returns every rule currently implemented, in a stable, deterministic
 /// order (declaration order below). `zk-guard rules list` and `zk-guard
@@ -35,6 +36,15 @@ pub fn registry() -> Vec<Box<dyn Rule>> {
         Box::new(ZkHash001),
         Box::new(ZkNullifier001),
     ]
+}
+
+/// Returns every **project-level** rule (see [`zkguard_core::ProjectRule`]),
+/// in a stable order. These run once over all discovered sources, separately
+/// from the per-file [`registry`] loop, but share the same metadata surface
+/// (`rules list`, SARIF descriptors, `rules_run`).
+#[must_use]
+pub fn project_registry() -> Vec<Box<dyn ProjectRule>> {
+    vec![Box::new(ZkTest001)]
 }
 
 #[cfg(test)]
@@ -94,5 +104,25 @@ mod tests {
             original_len,
             "rule registry must not contain duplicate rule_id values"
         );
+    }
+
+    #[test]
+    fn project_registry_contains_zk_test_001() {
+        let rules = project_registry();
+        assert!(rules.iter().any(|r| r.metadata().rule_id == "ZK-TEST-001"));
+    }
+
+    #[test]
+    fn per_file_and_project_rule_ids_do_not_overlap() {
+        let file_ids: Vec<String> = registry()
+            .iter()
+            .map(|r| r.metadata().rule_id.clone())
+            .collect();
+        for project_rule in project_registry() {
+            assert!(
+                !file_ids.contains(&project_rule.metadata().rule_id),
+                "a rule_id must be either per-file or project-level, not both"
+            );
+        }
     }
 }

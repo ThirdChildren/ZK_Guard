@@ -43,9 +43,14 @@ fn scan_vulnerable_fixture_exits_nonzero_and_reports_finding_human() {
 
 #[test]
 fn scan_safe_fixture_exits_zero_with_no_findings() {
+    // A fully clean project: the public input is bound to a constraint AND it
+    // has a `#[test(should_fail)]`, so no rule (including the project-level
+    // ZK-TEST-001) fires. `safe/noir-public-001` is clean for the per-file
+    // rules but has no negative test, so it would trip ZK-TEST-001 — this
+    // test needs an all-rules-clean fixture.
     zk_guard()
         .arg("scan")
-        .arg(fixture_path("noir/safe/noir-public-001"))
+        .arg(fixture_path("noir/safe/zk-test-001"))
         .assert()
         .code(0)
         .stdout(predicate::str::contains("No findings."));
@@ -71,14 +76,19 @@ fn scan_json_format_is_valid_and_contains_rule_id() {
         .get("findings")
         .and_then(|f| f.as_array())
         .expect("findings array");
-    assert_eq!(findings.len(), 1);
-    assert_eq!(findings[0]["rule_id"], "NOIR-PUBLIC-001");
-    assert_eq!(findings[0]["severity"], "high");
-    assert_eq!(findings[0]["confidence"], "medium");
-    assert!(findings[0]["file"].is_string());
-    assert!(findings[0]["evidence"].is_string());
-    assert!(findings[0]["why_it_matters"].is_string());
-    assert!(findings[0]["remediation"].is_string());
+    // This fixture has no negative test, so the project-level ZK-TEST-001 also
+    // fires here; assert on the NOIR-PUBLIC-001 finding specifically rather
+    // than assuming it is the only one.
+    let public = findings
+        .iter()
+        .find(|f| f["rule_id"] == "NOIR-PUBLIC-001")
+        .expect("a NOIR-PUBLIC-001 finding");
+    assert_eq!(public["severity"], "high");
+    assert_eq!(public["confidence"], "medium");
+    assert!(public["file"].is_string());
+    assert!(public["evidence"].is_string());
+    assert!(public["why_it_matters"].is_string());
+    assert!(public["remediation"].is_string());
 }
 
 #[test]

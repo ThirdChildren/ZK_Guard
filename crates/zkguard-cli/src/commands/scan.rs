@@ -66,19 +66,33 @@ pub fn run(args: &ScanArgs, stdout: &mut impl Write, stderr: &mut impl Write) ->
         }
     };
 
-    // Only run rules the config leaves enabled. `rules_meta` (registry order)
-    // is also what the SARIF renderer lists as reportingDescriptors.
+    // Only run rules the config leaves enabled. Per-file rules run once per
+    // source; project-level rules run once over the whole source set. Their
+    // combined metadata (per-file first, then project, registry order) is
+    // what the SARIF renderer lists as reportingDescriptors and what
+    // `rules_run` reports.
     let rules: Vec<_> = zkguard_rules::registry()
         .into_iter()
         .filter(|rule| config.is_rule_enabled(&rule.metadata().rule_id))
         .collect();
-    let rules_meta: Vec<RuleMetadata> = rules.iter().map(|r| r.metadata().clone()).collect();
+    let project_rules: Vec<_> = zkguard_rules::project_registry()
+        .into_iter()
+        .filter(|rule| config.is_rule_enabled(&rule.metadata().rule_id))
+        .collect();
+    let rules_meta: Vec<RuleMetadata> = rules
+        .iter()
+        .map(|r| r.metadata().clone())
+        .chain(project_rules.iter().map(|r| r.metadata().clone()))
+        .collect();
 
     let mut findings = Vec::new();
     for source in &project.sources {
         for rule in &rules {
             findings.extend(rule.check(source));
         }
+    }
+    for rule in &project_rules {
+        findings.extend(rule.check_project(&project.sources));
     }
 
     // Partition into active vs suppressed (inline directives + config entries);
@@ -226,7 +240,7 @@ mod tests {
         fs::write(root.join("Nargo.toml"), "[package]\nname=\"x\"\n").expect("write");
         fs::write(
             root.join("main.nr"),
-            "fn main(secret: Field, pub claimed_total: Field) {\n    let computed = secret * 2;\n    assert(computed == claimed_total);\n}\n",
+            "fn main(secret: Field, pub claimed_total: Field) {\n    let computed = secret * 2;\n    assert(computed == claimed_total);\n}\n#[test(should_fail)]\nfn t_reject() {}\n",
         )
         .expect("write");
 
@@ -279,13 +293,14 @@ mod tests {
         let text = String::from_utf8(out).expect("utf8");
         let v: serde_json::Value = serde_json::from_str(&text).expect("valid sarif json");
         assert_eq!(v["version"], "2.1.0");
-        // Every registered rule is present as a reportingDescriptor.
+        // Every registered rule (per-file + project-level) is present as a
+        // reportingDescriptor.
         assert_eq!(
             v["runs"][0]["tool"]["driver"]["rules"]
                 .as_array()
                 .expect("rules array")
                 .len(),
-            zkguard_rules::registry().len()
+            zkguard_rules::registry().len() + zkguard_rules::project_registry().len()
         );
         assert_eq!(v["runs"][0]["results"][0]["ruleId"], "NOIR-PUBLIC-001");
 
@@ -363,8 +378,10 @@ mod tests {
         root
     }
 
-    const VULN_MAIN: &str =
-        "fn main(secret: Field, pub claimed_total: Field) {\n    let computed = secret * 2;\n}\n";
+    // Trips NOIR-PUBLIC-001 (unbound `pub`), but carries a negative test so
+    // the project-level ZK-TEST-001 does not also fire — keeping these
+    // config/suppression tests isolated to NOIR-PUBLIC-001.
+    const VULN_MAIN: &str = "fn main(secret: Field, pub claimed_total: Field) {\n    let computed = secret * 2;\n}\n#[test(should_fail)]\nfn t_reject() {}\n";
 
     #[test]
     fn config_disabling_rule_removes_its_findings() {
@@ -396,7 +413,7 @@ mod tests {
 
     #[test]
     fn inline_directive_suppresses_finding() {
-        let main_nr = "fn main(secret: Field, pub claimed_total: Field) { // zkguard:ignore NOIR-PUBLIC-001 reason=\"informational only\"\n    let computed = secret * 2;\n}\n";
+        let main_nr = "fn main(secret: Field, pub claimed_total: Field) { // zkguard:ignore NOIR-PUBLIC-001 reason=\"informational only\"\n    let computed = secret * 2;\n}\n#[test(should_fail)]\nfn t_reject() {}\n";
         let root = vulnerable_project("inline-suppress", main_nr, None);
 
         let mut out = Vec::new();

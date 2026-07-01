@@ -55,8 +55,16 @@ pub struct ScanArgs {
 
     /// Minimum severity that causes a nonzero exit code. Findings below
     /// this threshold are still reported, they just don't fail the scan.
-    #[arg(long, value_enum, default_value_t = FailThreshold::Low)]
-    pub fail_on: FailThreshold,
+    /// Overrides `fail_on` in `zkguard.toml`; when neither is set, defaults
+    /// to `low` (any finding fails).
+    #[arg(long, value_enum)]
+    pub fail_on: Option<FailThreshold>,
+
+    /// Also list findings that were suppressed (by an inline
+    /// `// zkguard:ignore` directive or a `zkguard.toml` `[[suppress]]`
+    /// entry). The suppressed *count* is always reported regardless.
+    #[arg(long)]
+    pub show_suppressed: bool,
 }
 
 #[derive(Debug, Subcommand)]

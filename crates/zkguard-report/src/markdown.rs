@@ -28,6 +28,7 @@ pub fn render(result: &ScanResult) -> String {
     let sorted = result.sorted_by_severity();
     if sorted.is_empty() {
         out.push_str("No findings reached the configured failure threshold.\n");
+        render_suppressed(&mut out, result);
         return out;
     }
 
@@ -71,7 +72,38 @@ pub fn render(result: &ScanResult) -> String {
         out.push_str("\n\n");
     }
 
+    render_suppressed(&mut out, result);
     out
+}
+
+/// Renders a "## Suppressed findings" table, only when the caller populated
+/// `result.suppressed` (`--show-suppressed`). The count alone is always in
+/// the summary.
+fn render_suppressed(out: &mut String, result: &ScanResult) {
+    if result.suppressed.is_empty() {
+        return;
+    }
+    out.push_str("## Suppressed findings\n\n");
+    out.push_str("| Rule ID | Location | Suppressed by | Reason |\n");
+    out.push_str("|---|---|---|---|\n");
+    for s in &result.suppressed {
+        out.push_str(&format!(
+            "| `{}` | `{}{}` | {} | {} |\n",
+            s.finding.rule_id,
+            s.finding.file.display(),
+            location_suffix(s.finding.line, s.finding.column),
+            suppression_source(s.suppressed_by),
+            s.reason,
+        ));
+    }
+    out.push('\n');
+}
+
+fn suppression_source(kind: zkguard_core::SuppressionKind) -> &'static str {
+    match kind {
+        zkguard_core::SuppressionKind::Inline => "inline directive",
+        zkguard_core::SuppressionKind::Config => "`zkguard.toml`",
+    }
 }
 
 /// Renders the "## Summary" section: total findings plus a per-severity
@@ -96,9 +128,13 @@ fn render_summary(out: &mut String, result: &ScanResult) {
         }
     ));
     out.push_str(&format!(
-        "- Total findings: **{}**\n\n",
+        "- Total findings: **{}**\n",
         result.total_findings()
     ));
+    if result.suppressed_count > 0 {
+        out.push_str(&format!("- Suppressed: **{}**\n", result.suppressed_count));
+    }
+    out.push('\n');
 
     out.push_str("| Severity | Count |\n");
     out.push_str("|---|---|\n");
@@ -171,6 +207,7 @@ mod tests {
             .with_remediation("Bind every public input to at least one constraint.")],
             files_scanned: 1,
             rules_run: vec!["NOIR-PUBLIC-001".to_string()],
+            ..Default::default()
         }
     }
 
@@ -195,6 +232,7 @@ mod tests {
             findings: vec![],
             files_scanned: 3,
             rules_run: vec!["NOIR-PUBLIC-001".to_string()],
+            ..Default::default()
         };
         let md = render(&result);
 
@@ -218,6 +256,7 @@ mod tests {
             ],
             files_scanned: 2,
             rules_run: vec![],
+            ..Default::default()
         };
         let md = render(&result);
 

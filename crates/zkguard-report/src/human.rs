@@ -48,7 +48,45 @@ pub fn render(result: &ScanResult) -> String {
     }
 
     out.push_str(&render_summary(result));
+    if !result.suppressed.is_empty() {
+        out.push_str(&render_suppressed(result));
+    }
     out
+}
+
+/// Lists suppressed findings (only when the caller asked for them via
+/// `--show-suppressed`, i.e. when `result.suppressed` is populated). The
+/// count alone is always in the summary; this section adds the detail.
+fn render_suppressed(result: &ScanResult) -> String {
+    let mut out = String::new();
+    out.push_str("\nSuppressed findings:\n");
+    for s in &result.suppressed {
+        out.push_str(&format!(
+            "  [{}] {} ({}){} — via {}: {}\n",
+            severity_label(s.finding.severity),
+            s.finding.title,
+            s.finding.rule_id,
+            location_suffix_for(&s.finding),
+            suppression_source(s.suppressed_by),
+            s.reason,
+        ));
+    }
+    out
+}
+
+fn location_suffix_for(finding: &zkguard_core::Finding) -> String {
+    format!(
+        " {}{}",
+        finding.file.display(),
+        location_suffix(finding.line, finding.column)
+    )
+}
+
+fn suppression_source(kind: zkguard_core::SuppressionKind) -> &'static str {
+    match kind {
+        zkguard_core::SuppressionKind::Inline => "inline directive",
+        zkguard_core::SuppressionKind::Config => "zkguard.toml",
+    }
 }
 
 /// One-line-per-severity summary footer, plus a total line. Always
@@ -73,6 +111,9 @@ fn render_summary(result: &ScanResult) -> String {
         ));
     }
     out.push_str(&format!("  total:     {}\n", result.total_findings()));
+    if result.suppressed_count > 0 {
+        out.push_str(&format!("  suppressed: {}\n", result.suppressed_count));
+    }
     out
 }
 
@@ -125,6 +166,7 @@ mod tests {
             .with_remediation("Bind every public input to at least one constraint.")],
             files_scanned: 1,
             rules_run: vec!["NOIR-PUBLIC-001".to_string()],
+            ..Default::default()
         }
     }
 
@@ -147,6 +189,7 @@ mod tests {
             findings: vec![],
             files_scanned: 4,
             rules_run: vec!["NOIR-PUBLIC-001".to_string()],
+            ..Default::default()
         };
         let text = render(&result);
 

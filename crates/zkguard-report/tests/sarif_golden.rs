@@ -37,6 +37,7 @@ fn fixed_input() -> (ScanResult, Vec<RuleMetadata>) {
         .with_remediation("Bind every public input to at least one constraint.")],
         files_scanned: 1,
         rules_run: vec!["NOIR-PUBLIC-001".to_string()],
+        ..Default::default()
     };
     (result, rules)
 }

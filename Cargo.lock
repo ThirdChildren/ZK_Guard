@@ -633,7 +633,7 @@ dependencies = [
 
 [[package]]
 name = "zkguard-cli"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "assert_cmd",
  "clap",
@@ -648,7 +648,7 @@ dependencies = [
 
 [[package]]
 name = "zkguard-core"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -656,7 +656,7 @@ dependencies = [
 
 [[package]]
 name = "zkguard-fuzz"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "proptest",
  "zkguard-core",
@@ -666,14 +666,14 @@ dependencies = [
 
 [[package]]
 name = "zkguard-noir"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "zkguard-core",
 ]
 
 [[package]]
 name = "zkguard-report"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -682,7 +682,7 @@ dependencies = [
 
 [[package]]
 name = "zkguard-rules"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "zkguard-core",
  "zkguard-noir",
